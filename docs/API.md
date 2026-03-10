@@ -2,7 +2,7 @@
 
 ## Overview
 
-The backend provides REST APIs for stablecoin lifecycle management, event indexing, and compliance operations.
+The backend provides REST APIs for stablecoin lifecycle management, event indexing, and compliance operations. All write endpoints execute real on-chain transactions via a configured operator keypair.
 
 ## Endpoints
 
@@ -10,33 +10,48 @@ The backend provides REST APIs for stablecoin lifecycle management, event indexi
 
 ```
 GET /health
-```
 
-Returns service health status.
+Response:
+{
+  "status": "ok",
+  "timestamp": "2024-01-01T00:00:00Z",
+  "operator": "<pubkey>",
+  "mint": "<mint_address>",
+  "programId": "<program_id>",
+  "authEnabled": true
+}
+```
 
 ### Mint/Burn Service
 
+Write endpoints follow a **request → verify → execute → log** lifecycle:
+1. **Request** — Validate input and parse addresses
+2. **Verify** — Derive PDAs, resolve token account owners
+3. **Execute** — Build and submit the Anchor transaction on-chain
+4. **Log** — Record the result (success or failure) to the durable audit log and dispatch webhooks
+
 ```
 POST /api/v1/mint
+Authorization: Bearer <API_KEY>
 Content-Type: application/json
 
 {
-  "recipient": "<pubkey>",
+  "recipient": "<wallet_pubkey>",
   "amount": 1000000,
   "reference": "mint-request-001"
 }
 
 Response:
 {
-  "status": "completed",
-  "signature": "<tx_signature>",
-  "amount": 1000000,
-  "recipient": "<pubkey>"
+  "status": "executed",
+  "reference": "mint-request-001",
+  "signature": "<tx_signature>"
 }
 ```
 
 ```
 POST /api/v1/burn
+Authorization: Bearer <API_KEY>
 Content-Type: application/json
 
 {
@@ -53,10 +68,11 @@ GET /api/v1/supply
 
 Response:
 {
-  "totalMinted": 10000000000,
-  "totalBurned": 500000000,
-  "circulatingSupply": 9500000000,
-  "decimals": 6
+  "amount": "10000000000",
+  "decimals": 6,
+  "uiAmount": 10000.0,
+  "uiAmountString": "10000",
+  "mint": "<mint_address>"
 }
 ```
 
@@ -64,10 +80,11 @@ Response:
 
 ```
 POST /api/v1/compliance/blacklist
+Authorization: Bearer <API_KEY>
 Content-Type: application/json
 
 {
-  "address": "<pubkey>",
+  "address": "<wallet_pubkey>",
   "reason": "OFAC SDN match",
   "reference": "compliance-001"
 }
@@ -75,6 +92,7 @@ Content-Type: application/json
 
 ```
 DELETE /api/v1/compliance/blacklist/:address
+Authorization: Bearer <API_KEY>
 ```
 
 ```
@@ -82,41 +100,92 @@ GET /api/v1/compliance/blacklist/:address
 
 Response:
 {
+  "address": "<pubkey>",
   "blacklisted": true,
-  "reason": "OFAC SDN match",
-  "blacklistedAt": "2024-01-01T00:00:00Z",
-  "blacklistedBy": "<pubkey>"
+  "blacklistPDA": "<pda_address>"
 }
 ```
 
 ```
 POST /api/v1/compliance/seize
+Authorization: Bearer <API_KEY>
 Content-Type: application/json
 
 {
-  "from": "<token_account>",
-  "treasury": "<treasury_account>",
+  "from": "<source_token_account>",
+  "treasury": "<treasury_token_account>",
   "reference": "seize-001"
 }
 ```
 
+Note: The `from` field is a **token account** address. The backend fetches this account on-chain to extract the wallet owner for correct blacklist PDA derivation.
+
 ### Events
 
-```
-GET /api/v1/events?type=mint&limit=50&offset=0
+When the indexer is running, events are classified by type. Use the `type` query parameter to filter.
 
-Response:
+```
+GET /api/v1/events?type=TokensMinted&limit=50&offset=0
+
+Response (indexed events available):
 {
+  "source": "indexer",
   "events": [
     {
       "type": "TokensMinted",
-      "data": { ... },
+      "data": "<base64>",
       "signature": "<tx>",
-      "slot": 12345,
-      "timestamp": "2024-01-01T00:00:00Z"
+      "slot": 0,
+      "timestamp": 1704067200000
     }
   ],
   "total": 150,
+  "limit": 50,
+  "offset": 0,
+  "programId": "<program_id>"
+}
+
+Response (fallback — no indexed events yet):
+{
+  "source": "on-chain",
+  "events": [
+    {
+      "type": "transaction",
+      "signature": "<tx>",
+      "slot": 12345,
+      "blockTime": 1704067200,
+      "err": null
+    }
+  ],
+  "total": 150,
+  "limit": 50,
+  "offset": 0,
+  "programId": "<program_id>"
+}
+```
+
+Supported event types (from the on-chain program): `StablecoinInitialized`, `TokensMinted`, `TokensBurned`, `AccountFrozen`, `AccountThawed`, `Paused`, `Unpaused`, `RoleAssigned`, `RoleRevoked`, `AuthorityTransferred`, `BlacklistAdded`, `BlacklistRemoved`, `TokensSeized`.
+
+### Audit Log
+
+The audit log is **durable** — entries are appended to disk and rehydrated on restart.
+
+```
+GET /api/v1/audit-log?action=mint&limit=50&offset=0
+
+Response:
+{
+  "entries": [
+    {
+      "timestamp": "2024-01-01T00:00:00Z",
+      "action": "mint",
+      "status": "success",
+      "reference": "mint-request-001",
+      "signature": "<tx_signature>",
+      "details": { "recipient": "<pubkey>", "amount": "1000000" }
+    }
+  ],
+  "total": 10,
   "limit": 50,
   "offset": 0
 }
@@ -124,8 +193,11 @@ Response:
 
 ### Webhooks
 
+Webhooks are persisted to disk and deliver payloads via HTTP POST with HMAC-SHA256 signatures and retry logic (3 attempts, exponential backoff).
+
 ```
 POST /api/v1/webhooks
+Authorization: Bearer <API_KEY>
 Content-Type: application/json
 
 {
@@ -137,23 +209,39 @@ Content-Type: application/json
 
 ```
 GET /api/v1/webhooks
+Authorization: Bearer <API_KEY>
+
 DELETE /api/v1/webhooks/:id
+Authorization: Bearer <API_KEY>
 ```
+
+Webhook payload format:
+```json
+{
+  "event": "mint",
+  "timestamp": "2024-01-01T00:00:00Z",
+  "data": { ... }
+}
+```
+
+The `X-SSS-Signature` header contains the HMAC-SHA256 of the request body using the webhook secret.
 
 ## Authentication
 
-All mutating endpoints require authentication via signed Solana messages:
+All mutating endpoints require an API key via the `Authorization` header:
 
 ```
-Authorization: Bearer <base58_signed_message>
+Authorization: Bearer <API_KEY>
 ```
 
-The backend verifies that the signer has the required role for the operation.
+Set the `API_KEY` environment variable to enable authentication. When not set, auth is disabled (development mode).
+
+Read endpoints (supply, blacklist check, events, audit log) do not require authentication.
 
 ## Docker
 
 ```bash
-cd backend
+cd backend/docker
 docker compose up
 
 # Services:
@@ -162,13 +250,26 @@ docker compose up
 # - Health check: http://localhost:3000/health
 ```
 
+The Docker build context is the repo root, so run from `backend/docker/`.
+
 ## Environment Variables
 
 ```env
+# Required
 SOLANA_RPC_URL=https://api.devnet.solana.com
-PROGRAM_ID=<sss_token_program_id>
+PROGRAM_ID=CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ
 STABLECOIN_MINT=<mint_address>
+
+# Operator (required for write endpoints)
+OPERATOR_KEYPAIR=/path/to/keypair.json
+
+# Authentication (optional, disabled if not set)
+API_KEY=your-secret-api-key
+
+# Logging
+AUDIT_LOG_PATH=./audit.log
+WEBHOOK_STORE_PATH=./webhooks.json
+EVENTS_STORE_PATH=./events.ndjson
 PORT=3000
 LOG_LEVEL=info
-WEBHOOK_SECRET=<secret>
 ```

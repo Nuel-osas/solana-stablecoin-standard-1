@@ -113,7 +113,8 @@ pub mod sss_transfer_hook {
             )
             .map_err(|_| ProgramError::InvalidArgument)?,
             // extra[2]: source blacklist PDA
-            // seeds: [b"blacklist", stablecoin.key(), authority.key()], program = extra[0]
+            // seeds: [b"blacklist", stablecoin.key(), source_owner], program = extra[0]
+            // source_owner = bytes 32..64 of source token account (index 0)
             ExtraAccountMeta::new_external_pda_with_seeds(
                 4,
                 &[
@@ -121,14 +122,15 @@ pub mod sss_transfer_hook {
                         bytes: BLACKLIST_SEED.to_vec(),
                     },
                     Seed::AccountKey { index: 5 }, // stablecoin (abs index 5)
-                    Seed::AccountKey { index: 3 }, // authority / source owner
+                    Seed::AccountData { account_index: 0, data_index: 32, length: 32 }, // source token account owner
                 ],
                 false,
                 false,
             )
             .map_err(|_| ProgramError::InvalidArgument)?,
             // extra[3]: destination blacklist PDA
-            // seeds: [b"blacklist", stablecoin.key(), destination.key()], program = extra[0]
+            // seeds: [b"blacklist", stablecoin.key(), dest_owner], program = extra[0]
+            // dest_owner = bytes 32..64 of destination token account (index 2)
             ExtraAccountMeta::new_external_pda_with_seeds(
                 4,
                 &[
@@ -136,7 +138,7 @@ pub mod sss_transfer_hook {
                         bytes: BLACKLIST_SEED.to_vec(),
                     },
                     Seed::AccountKey { index: 5 }, // stablecoin (abs index 5)
-                    Seed::AccountKey { index: 2 }, // destination token account
+                    Seed::AccountData { account_index: 2, data_index: 32, length: 32 }, // dest token account owner
                 ],
                 false,
                 false,

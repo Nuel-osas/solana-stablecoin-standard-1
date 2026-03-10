@@ -2,10 +2,18 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-COPY package.json yarn.lock* ./
-RUN yarn install --production
+COPY backend/package.json backend/yarn.lock* ./
+RUN yarn install
 
-COPY dist/ ./dist/
+COPY backend/tsconfig.json ./
+COPY backend/src/ ./src/
+
+# Copy IDL so the server can load the program definition at runtime
+COPY target/idl/ ./target/idl/
+
+RUN yarn build
+
+RUN yarn install --production
 
 EXPOSE 3000
 

@@ -1,37 +1,88 @@
-import { Keypair, PublicKey } from "@solana/web3.js";
-import { findBlacklistPDA } from "./pda";
+import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
+import { TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
+import * as anchor from "@coral-xyz/anchor";
+import { findBlacklistPDA, findRolePDA } from "./pda";
 import type { BlacklistParams, SeizeParams } from "./types";
 
 export class ComplianceModule {
   private stablecoin: any; // SolanaStablecoin (avoid circular import)
+  private program: anchor.Program;
 
-  constructor(stablecoin: any) {
+  constructor(stablecoin: any, program: anchor.Program) {
     this.stablecoin = stablecoin;
+    this.program = program;
   }
 
   /**
    * Add an address to the blacklist. SSS-2 only.
+   * Caller must have blacklister role.
    */
-  async blacklistAdd(address: PublicKey, reason: string, blacklister?: Keypair): Promise<string> {
+  async blacklistAdd(
+    address: PublicKey,
+    reason: string,
+    blacklister: Keypair
+  ): Promise<string> {
     const [blacklistPDA] = findBlacklistPDA(
       this.stablecoin.stablecoinPDA,
       address,
       this.stablecoin.programId
     );
 
-    console.log(`Adding ${address.toBase58()} to blacklist: "${reason}"`);
-    console.log(`  Blacklist PDA: ${blacklistPDA.toBase58()}`);
+    const [rolePDA] = findRolePDA(
+      this.stablecoin.stablecoinPDA,
+      "blacklister",
+      blacklister.publicKey,
+      this.stablecoin.programId
+    );
 
-    // In production: program.methods.addToBlacklist(address, reason).accounts({...}).rpc()
-    return "tx_signature_placeholder";
+    const txSig = await this.program.methods
+      .addToBlacklist(address, reason)
+      .accounts({
+        blacklister: blacklister.publicKey,
+        stablecoin: this.stablecoin.stablecoinPDA,
+        roleAssignment: rolePDA,
+        blacklistEntry: blacklistPDA,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([blacklister])
+      .rpc();
+
+    return txSig;
   }
 
   /**
    * Remove an address from the blacklist. SSS-2 only.
+   * Caller must have blacklister role.
    */
-  async blacklistRemove(address: PublicKey, blacklister?: Keypair): Promise<string> {
-    console.log(`Removing ${address.toBase58()} from blacklist`);
-    return "tx_signature_placeholder";
+  async blacklistRemove(
+    address: PublicKey,
+    blacklister: Keypair
+  ): Promise<string> {
+    const [blacklistPDA] = findBlacklistPDA(
+      this.stablecoin.stablecoinPDA,
+      address,
+      this.stablecoin.programId
+    );
+
+    const [rolePDA] = findRolePDA(
+      this.stablecoin.stablecoinPDA,
+      "blacklister",
+      blacklister.publicKey,
+      this.stablecoin.programId
+    );
+
+    const txSig = await this.program.methods
+      .removeFromBlacklist(address)
+      .accounts({
+        blacklister: blacklister.publicKey,
+        stablecoin: this.stablecoin.stablecoinPDA,
+        roleAssignment: rolePDA,
+        blacklistEntry: blacklistPDA,
+      })
+      .signers([blacklister])
+      .rpc();
+
+    return txSig;
   }
 
   /**
@@ -51,20 +102,50 @@ export class ComplianceModule {
   /**
    * Seize tokens from a blacklisted/frozen account. SSS-2 only.
    * Uses permanent delegate to transfer tokens to treasury.
+   * Caller must have seizer role.
    */
-  async seize(frozenAccount: PublicKey, treasury: PublicKey, seizer?: Keypair): Promise<string> {
-    console.log(`Seizing tokens from ${frozenAccount.toBase58()} to ${treasury.toBase58()}`);
-    return "tx_signature_placeholder";
+  async seize(params: SeizeParams): Promise<string> {
+    const [rolePDA] = findRolePDA(
+      this.stablecoin.stablecoinPDA,
+      "seizer",
+      params.seizer.publicKey,
+      this.stablecoin.programId
+    );
+
+    // The blacklist entry PDA is derived from the owner of the source account.
+    // Anchor will resolve source_account.owner automatically from the IDL seeds,
+    // but we pass the blacklistEntry explicitly.
+    // We need to read the source_account to find its owner for the blacklist PDA.
+    // However, the IDL uses "source_account.owner" in the seeds, which Anchor
+    // resolves at runtime. We just need to pass the accounts.
+
+    const txSig = await this.program.methods
+      .seize()
+      .accounts({
+        seizer: params.seizer.publicKey,
+        stablecoin: this.stablecoin.stablecoinPDA,
+        mint: this.stablecoin.mint,
+        roleAssignment: rolePDA,
+        sourceAccount: params.sourceAccount,
+        treasuryAccount: params.treasuryAccount,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
+      })
+      .signers([params.seizer])
+      .rpc();
+
+    return txSig;
   }
 
   /**
    * Get the blacklist entry for an address.
    */
   async getBlacklistEntry(address: PublicKey): Promise<{
+    stablecoin: PublicKey;
     address: PublicKey;
     reason: string;
-    blacklistedAt: number;
+    blacklistedAt: anchor.BN;
     blacklistedBy: PublicKey;
+    bump: number;
   } | null> {
     const [blacklistPDA] = findBlacklistPDA(
       this.stablecoin.stablecoinPDA,
@@ -72,10 +153,26 @@ export class ComplianceModule {
       this.stablecoin.programId
     );
 
-    const accountInfo = await this.stablecoin.connection.getAccountInfo(blacklistPDA);
-    if (!accountInfo) return null;
-
-    // Deserialize in production
-    return null;
+    try {
+      const account = await (this.program.account as any).blacklistEntry.fetch(
+        blacklistPDA
+      );
+      return {
+        stablecoin: account.stablecoin,
+        address: account.address,
+        reason: account.reason,
+        blacklistedAt: account.blacklistedAt,
+        blacklistedBy: account.blacklistedBy,
+        bump: account.bump,
+      };
+    } catch (e: any) {
+      if (
+        e.message?.includes("Account does not exist") ||
+        e.message?.includes("Could not find")
+      ) {
+        return null;
+      }
+      throw e;
+    }
   }
 }

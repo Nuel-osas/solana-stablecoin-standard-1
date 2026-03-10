@@ -3,19 +3,26 @@ version: "3.8"
 services:
   api:
     build:
-      context: ..
-      dockerfile: docker/Dockerfile
+      context: ../..
+      dockerfile: backend/docker/Dockerfile
     ports:
       - "3000:3000"
     environment:
       - SOLANA_RPC_URL=${SOLANA_RPC_URL:-https://api.devnet.solana.com}
-      - PROGRAM_ID=${PROGRAM_ID}
+      - PROGRAM_ID=${PROGRAM_ID:-CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ}
       - STABLECOIN_MINT=${STABLECOIN_MINT}
+      - OPERATOR_KEYPAIR=${OPERATOR_KEYPAIR:-}
+      - AUDIT_LOG_PATH=/app/data/audit.log
+      - WEBHOOK_STORE_PATH=/app/data/webhooks.json
+      - EVENTS_STORE_PATH=/app/data/events.ndjson
+      - API_KEY=${API_KEY:-}
       - PORT=3000
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - NODE_ENV=production
+    volumes:
+      - audit-data:/app/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -23,13 +30,19 @@ services:
 
   indexer:
     build:
-      context: ..
-      dockerfile: docker/Dockerfile
+      context: ../..
+      dockerfile: backend/docker/Dockerfile
     command: ["node", "dist/indexer.js"]
     environment:
       - SOLANA_RPC_URL=${SOLANA_RPC_URL:-https://api.devnet.solana.com}
-      - PROGRAM_ID=${PROGRAM_ID}
+      - PROGRAM_ID=${PROGRAM_ID:-CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ}
       - STABLECOIN_MINT=${STABLECOIN_MINT}
+      - EVENTS_STORE_PATH=/app/data/events.ndjson
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - NODE_ENV=production
+    volumes:
+      - audit-data:/app/data
     restart: unless-stopped
+
+volumes:
+  audit-data:

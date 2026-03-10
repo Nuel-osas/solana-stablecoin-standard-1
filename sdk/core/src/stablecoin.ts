@@ -3,18 +3,68 @@ import {
   Keypair,
   PublicKey,
   SystemProgram,
-  Transaction,
-  sendAndConfirmTransaction,
+  SYSVAR_RENT_PUBKEY,
 } from "@solana/web3.js";
 import { TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
 import * as anchor from "@coral-xyz/anchor";
 import { findStablecoinPDA, findRolePDA, findMinterInfoPDA } from "./pda";
 import { ComplianceModule } from "./compliance";
-import type { StablecoinConfig, StablecoinState, RoleType, MintParams } from "./types";
+import { roleToAnchorEnum } from "./types";
+import type {
+  StablecoinConfig,
+  StablecoinState,
+  RoleType,
+  MintParams,
+  BurnParams,
+  FreezeParams,
+  ThawParams,
+} from "./types";
+
+import idlJson from "./idl/sss_token.json";
+
+const PROGRAM_ID = new PublicKey("CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ");
 
 export enum Presets {
   SSS_1 = "SSS_1",
   SSS_2 = "SSS_2",
+}
+
+/**
+ * Create an Anchor Program instance from a connection and wallet.
+ */
+function createProgram(
+  provider: anchor.AnchorProvider,
+  programId?: PublicKey
+): anchor.Program {
+  const pid = programId ?? PROGRAM_ID;
+  // Override the IDL's embedded address so forked/redeployed programs work
+  const idl = { ...idlJson, address: pid.toBase58() } as anchor.Idl;
+  return new anchor.Program(idl, provider);
+}
+
+/**
+ * A read-only wallet adapter for loading state without signing.
+ */
+class ReadOnlyWallet implements anchor.Wallet {
+  publicKey: PublicKey;
+  payer: Keypair;
+
+  constructor() {
+    this.payer = Keypair.generate();
+    this.publicKey = this.payer.publicKey;
+  }
+
+  async signTransaction<T extends anchor.web3.Transaction | anchor.web3.VersionedTransaction>(
+    tx: T
+  ): Promise<T> {
+    throw new Error("Read-only wallet cannot sign transactions");
+  }
+
+  async signAllTransactions<T extends anchor.web3.Transaction | anchor.web3.VersionedTransaction>(
+    txs: T[]
+  ): Promise<T[]> {
+    throw new Error("Read-only wallet cannot sign transactions");
+  }
 }
 
 export class SolanaStablecoin {
@@ -25,33 +75,44 @@ export class SolanaStablecoin {
   public readonly compliance: ComplianceModule;
 
   private bump: number;
-  private program: anchor.Program | null = null;
+  private program: anchor.Program;
 
   private constructor(
     connection: Connection,
     programId: PublicKey,
     mint: PublicKey,
     stablecoinPDA: PublicKey,
-    bump: number
+    bump: number,
+    program: anchor.Program
   ) {
     this.connection = connection;
     this.programId = programId;
     this.mint = mint;
     this.stablecoinPDA = stablecoinPDA;
     this.bump = bump;
-    this.compliance = new ComplianceModule(this);
+    this.program = program;
+    this.compliance = new ComplianceModule(this, program);
+  }
+
+  /**
+   * Get the underlying Anchor Program instance.
+   */
+  getProgram(): anchor.Program {
+    return this.program;
   }
 
   /**
    * Create and initialize a new stablecoin.
+   * Sends the `initialize` instruction on-chain.
    */
   static async create(
     connection: Connection,
     config: StablecoinConfig,
-    programId: PublicKey
+    programId?: PublicKey
   ): Promise<SolanaStablecoin> {
+    const pid = programId ?? PROGRAM_ID;
     const mintKeypair = Keypair.generate();
-    const [stablecoinPDA, bump] = findStablecoinPDA(mintKeypair.publicKey, programId);
+    const [stablecoinPDA, bump] = findStablecoinPDA(mintKeypair.publicKey, pid);
 
     // Determine preset config
     let enablePermanentDelegate = false;
@@ -79,46 +140,129 @@ export class SolanaStablecoin {
       defaultAccountFrozen,
     };
 
-    // Build and send initialization transaction
-    // This would use the Anchor program in practice
-    console.log(`Initializing ${config.preset ?? "custom"} stablecoin: ${config.name} (${config.symbol})`);
-    console.log(`  Mint: ${mintKeypair.publicKey.toBase58()}`);
-    console.log(`  Stablecoin PDA: ${stablecoinPDA.toBase58()}`);
-    console.log(`  Compliance: ${enablePermanentDelegate ? "enabled" : "disabled"}`);
-    console.log(`  Transfer Hook: ${enableTransferHook ? "enabled" : "disabled"}`);
+    // Build provider from the authority keypair
+    const wallet = {
+      publicKey: config.authority.publicKey,
+      payer: config.authority,
+      signTransaction: async <T extends anchor.web3.Transaction | anchor.web3.VersionedTransaction>(tx: T): Promise<T> => {
+        if (tx instanceof anchor.web3.Transaction) {
+          tx.partialSign(config.authority);
+        }
+        return tx;
+      },
+      signAllTransactions: async <T extends anchor.web3.Transaction | anchor.web3.VersionedTransaction>(txs: T[]): Promise<T[]> => {
+        for (const tx of txs) {
+          if (tx instanceof anchor.web3.Transaction) {
+            tx.partialSign(config.authority);
+          }
+        }
+        return txs;
+      },
+    } as anchor.Wallet;
 
-    return new SolanaStablecoin(connection, programId, mintKeypair.publicKey, stablecoinPDA, bump);
+    const provider = new anchor.AnchorProvider(connection, wallet, {
+      commitment: "confirmed",
+    });
+    const program = createProgram(provider, pid);
+
+    // Send the initialize instruction
+    await program.methods
+      .initialize(initConfig)
+      .accounts({
+        authority: config.authority.publicKey,
+        mint: mintKeypair.publicKey,
+        stablecoin: stablecoinPDA,
+        transferHookProgram: null,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+        rent: SYSVAR_RENT_PUBKEY,
+      } as any)
+      .signers([mintKeypair])
+      .rpc();
+
+    return new SolanaStablecoin(
+      connection,
+      pid,
+      mintKeypair.publicKey,
+      stablecoinPDA,
+      bump,
+      program
+    );
   }
 
   /**
    * Load an existing stablecoin by mint address.
+   * Creates a read-only provider for fetching state.
+   * Pass an `AnchorProvider` if you need to send transactions.
    */
   static async load(
     connection: Connection,
     mint: PublicKey,
-    programId: PublicKey
+    programId?: PublicKey,
+    provider?: anchor.AnchorProvider
   ): Promise<SolanaStablecoin> {
-    const [stablecoinPDA, bump] = findStablecoinPDA(mint, programId);
-    return new SolanaStablecoin(connection, programId, mint, stablecoinPDA, bump);
+    const pid = programId ?? PROGRAM_ID;
+    const [stablecoinPDA, bump] = findStablecoinPDA(mint, pid);
+
+    let anchorProvider: anchor.AnchorProvider;
+    if (provider) {
+      anchorProvider = provider;
+    } else {
+      const readOnlyWallet = new ReadOnlyWallet();
+      anchorProvider = new anchor.AnchorProvider(connection, readOnlyWallet, {
+        commitment: "confirmed",
+      });
+    }
+
+    const program = createProgram(anchorProvider, pid);
+
+    return new SolanaStablecoin(connection, pid, mint, stablecoinPDA, bump, program);
   }
 
   /**
-   * Fetch on-chain state.
+   * Fetch on-chain state of the stablecoin.
    */
   async getState(): Promise<StablecoinState | null> {
-    // In production, this fetches and deserializes the account
-    const accountInfo = await this.connection.getAccountInfo(this.stablecoinPDA);
-    if (!accountInfo) return null;
-
-    // Deserialize using Anchor IDL
-    // For now return a placeholder
-    return null;
+    try {
+      const account = await (this.program.account as any).stablecoin.fetch(
+        this.stablecoinPDA
+      );
+      return {
+        authority: account.authority,
+        mint: account.mint,
+        name: account.name,
+        symbol: account.symbol,
+        uri: account.uri,
+        decimals: account.decimals,
+        paused: account.paused,
+        enablePermanentDelegate: account.enablePermanentDelegate,
+        enableTransferHook: account.enableTransferHook,
+        defaultAccountFrozen: account.defaultAccountFrozen,
+        totalMinted: account.totalMinted,
+        totalBurned: account.totalBurned,
+        bump: account.bump,
+      } as StablecoinState;
+    } catch (e: any) {
+      // Account does not exist
+      if (
+        e.message?.includes("Account does not exist") ||
+        e.message?.includes("Could not find")
+      ) {
+        return null;
+      }
+      throw e;
+    }
   }
 
   /**
-   * Mint tokens to a recipient.
+   * Mint tokens to a recipient token account.
    */
   async mintTokens(params: MintParams): Promise<string> {
+    const amount =
+      params.amount instanceof anchor.BN
+        ? params.amount
+        : new anchor.BN(params.amount.toString());
+
     const [rolePDA] = findRolePDA(
       this.stablecoinPDA,
       "minter",
@@ -131,83 +275,255 @@ export class SolanaStablecoin {
       this.programId
     );
 
-    console.log(`Minting ${params.amount} tokens to ${params.recipient.toBase58()}`);
+    const txSig = await this.program.methods
+      .mintTokens(amount)
+      .accounts({
+        minter: params.minter.publicKey,
+        stablecoin: this.stablecoinPDA,
+        mint: this.mint,
+        roleAssignment: rolePDA,
+        minterInfo: minterInfoPDA,
+        recipientTokenAccount: params.recipientTokenAccount,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
+      })
+      .signers([params.minter])
+      .rpc();
 
-    // Build transaction with the program
-    // In production: program.methods.mintTokens(amount).accounts({...}).rpc()
-    return "tx_signature_placeholder";
+    return txSig;
   }
 
   /**
-   * Burn tokens.
+   * Burn tokens from a token account.
    */
-  async burn(params: { amount: number | bigint; burner: Keypair; from: PublicKey }): Promise<string> {
-    console.log(`Burning ${params.amount} tokens`);
-    return "tx_signature_placeholder";
+  async burn(params: BurnParams): Promise<string> {
+    const amount =
+      params.amount instanceof anchor.BN
+        ? params.amount
+        : new anchor.BN(params.amount.toString());
+
+    const [rolePDA] = findRolePDA(
+      this.stablecoinPDA,
+      "burner",
+      params.burner.publicKey,
+      this.programId
+    );
+
+    const txSig = await this.program.methods
+      .burnTokens(amount)
+      .accounts({
+        burner: params.burner.publicKey,
+        stablecoin: this.stablecoinPDA,
+        mint: this.mint,
+        roleAssignment: rolePDA,
+        burnFrom: params.tokenAccount,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
+      })
+      .signers([params.burner])
+      .rpc();
+
+    return txSig;
   }
 
   /**
-   * Freeze a token account.
+   * Freeze a token account. Caller must have pauser role or be master authority.
    */
-  async freezeAccount(params: { account: PublicKey; authority: Keypair }): Promise<string> {
-    console.log(`Freezing account ${params.account.toBase58()}`);
-    return "tx_signature_placeholder";
+  async freezeAccount(params: FreezeParams): Promise<string> {
+    const [rolePDA] = findRolePDA(
+      this.stablecoinPDA,
+      "pauser",
+      params.authority.publicKey,
+      this.programId
+    );
+
+    const txSig = await this.program.methods
+      .freezeAccount()
+      .accounts({
+        authority: params.authority.publicKey,
+        stablecoin: this.stablecoinPDA,
+        mint: this.mint,
+        roleAssignment: rolePDA,
+        targetAccount: params.tokenAccount,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
+      })
+      .signers([params.authority])
+      .rpc();
+
+    return txSig;
   }
 
   /**
-   * Thaw a frozen token account.
+   * Thaw a frozen token account. Caller must have pauser role or be master authority.
    */
-  async thawAccount(params: { account: PublicKey; authority: Keypair }): Promise<string> {
-    console.log(`Thawing account ${params.account.toBase58()}`);
-    return "tx_signature_placeholder";
+  async thawAccount(params: ThawParams): Promise<string> {
+    const [rolePDA] = findRolePDA(
+      this.stablecoinPDA,
+      "pauser",
+      params.authority.publicKey,
+      this.programId
+    );
+
+    const txSig = await this.program.methods
+      .thawAccount()
+      .accounts({
+        authority: params.authority.publicKey,
+        stablecoin: this.stablecoinPDA,
+        mint: this.mint,
+        roleAssignment: rolePDA,
+        targetAccount: params.tokenAccount,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
+      })
+      .signers([params.authority])
+      .rpc();
+
+    return txSig;
   }
 
   /**
-   * Pause all operations.
+   * Pause all token operations. Caller must have pauser role.
    */
   async pause(authority: Keypair): Promise<string> {
-    console.log("Pausing stablecoin");
-    return "tx_signature_placeholder";
+    const [rolePDA] = findRolePDA(
+      this.stablecoinPDA,
+      "pauser",
+      authority.publicKey,
+      this.programId
+    );
+
+    const txSig = await this.program.methods
+      .pause()
+      .accounts({
+        authority: authority.publicKey,
+        stablecoin: this.stablecoinPDA,
+        roleAssignment: rolePDA,
+      })
+      .signers([authority])
+      .rpc();
+
+    return txSig;
   }
 
   /**
-   * Unpause operations.
+   * Unpause token operations. Caller must have pauser role.
    */
   async unpause(authority: Keypair): Promise<string> {
-    console.log("Unpausing stablecoin");
-    return "tx_signature_placeholder";
+    const [rolePDA] = findRolePDA(
+      this.stablecoinPDA,
+      "pauser",
+      authority.publicKey,
+      this.programId
+    );
+
+    const txSig = await this.program.methods
+      .unpause()
+      .accounts({
+        authority: authority.publicKey,
+        stablecoin: this.stablecoinPDA,
+        roleAssignment: rolePDA,
+      })
+      .signers([authority])
+      .rpc();
+
+    return txSig;
   }
 
   /**
-   * Assign a role to an address.
+   * Assign a role to an address. Caller must be master authority.
    */
   async assignRole(params: {
     role: RoleType;
     assignee: PublicKey;
     authority: Keypair;
   }): Promise<string> {
-    console.log(`Assigning ${params.role} role to ${params.assignee.toBase58()}`);
-    return "tx_signature_placeholder";
+    const roleEnum = roleToAnchorEnum(params.role);
+
+    const [rolePDA] = findRolePDA(
+      this.stablecoinPDA,
+      params.role,
+      params.assignee,
+      this.programId
+    );
+
+    // minterInfo is only needed when assigning the minter role
+    let minterInfo: PublicKey | null = null;
+    if (params.role === "minter") {
+      const [minterInfoPDA] = findMinterInfoPDA(
+        this.stablecoinPDA,
+        params.assignee,
+        this.programId
+      );
+      minterInfo = minterInfoPDA;
+    }
+
+    const txSig = await this.program.methods
+      .assignRole(roleEnum, params.assignee)
+      .accounts({
+        authority: params.authority.publicKey,
+        stablecoin: this.stablecoinPDA,
+        roleAssignment: rolePDA,
+        minterInfo: minterInfo,
+        systemProgram: SystemProgram.programId,
+      } as any)
+      .signers([params.authority])
+      .rpc();
+
+    return txSig;
   }
 
   /**
-   * Revoke a role.
+   * Revoke a role from an address. Caller must be master authority.
    */
   async revokeRole(params: {
     role: RoleType;
     assignee: PublicKey;
     authority: Keypair;
   }): Promise<string> {
-    console.log(`Revoking ${params.role} role from ${params.assignee.toBase58()}`);
-    return "tx_signature_placeholder";
+    const roleEnum = roleToAnchorEnum(params.role);
+
+    const [rolePDA] = findRolePDA(
+      this.stablecoinPDA,
+      params.role,
+      params.assignee,
+      this.programId
+    );
+
+    const txSig = await this.program.methods
+      .revokeRole(roleEnum, params.assignee)
+      .accounts({
+        authority: params.authority.publicKey,
+        stablecoin: this.stablecoinPDA,
+        roleAssignment: rolePDA,
+      })
+      .signers([params.authority])
+      .rpc();
+
+    return txSig;
+  }
+
+  /**
+   * Transfer master authority to a new public key.
+   */
+  async transferAuthority(
+    currentAuthority: Keypair,
+    newAuthority: PublicKey
+  ): Promise<string> {
+    const txSig = await this.program.methods
+      .transferAuthority(newAuthority)
+      .accounts({
+        authority: currentAuthority.publicKey,
+        stablecoin: this.stablecoinPDA,
+      })
+      .signers([currentAuthority])
+      .rpc();
+
+    return txSig;
   }
 
   /**
    * Get total supply (minted - burned).
    */
-  async getTotalSupply(): Promise<bigint> {
+  async getTotalSupply(): Promise<anchor.BN> {
     const state = await this.getState();
-    if (!state) return BigInt(0);
-    return state.totalMinted - state.totalBurned;
+    if (!state) return new anchor.BN(0);
+    return state.totalMinted.sub(state.totalBurned);
   }
 }

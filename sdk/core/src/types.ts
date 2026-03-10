@@ -1,6 +1,26 @@
 import { PublicKey, Keypair } from "@solana/web3.js";
+import * as anchor from "@coral-xyz/anchor";
 
 export type RoleType = "minter" | "burner" | "blacklister" | "pauser" | "seizer";
+
+/**
+ * Convert a RoleType string to the Anchor enum variant object
+ * expected by the IDL (e.g. { minter: {} }).
+ */
+export function roleToAnchorEnum(role: RoleType): object {
+  switch (role) {
+    case "minter":
+      return { minter: {} };
+    case "burner":
+      return { burner: {} };
+    case "blacklister":
+      return { blacklister: {} };
+    case "pauser":
+      return { pauser: {} };
+    case "seizer":
+      return { seizer: {} };
+  }
+}
 
 export interface StablecoinConfig {
   preset?: "SSS_1" | "SSS_2";
@@ -27,14 +47,31 @@ export interface StablecoinState {
   enablePermanentDelegate: boolean;
   enableTransferHook: boolean;
   defaultAccountFrozen: boolean;
-  totalMinted: bigint;
-  totalBurned: bigint;
+  totalMinted: anchor.BN;
+  totalBurned: anchor.BN;
+  bump: number;
 }
 
 export interface MintParams {
-  recipient: PublicKey;
-  amount: number | bigint;
+  recipientTokenAccount: PublicKey;
+  amount: number | anchor.BN;
   minter: Keypair;
+}
+
+export interface BurnParams {
+  amount: number | anchor.BN;
+  burner: Keypair;
+  tokenAccount: PublicKey;
+}
+
+export interface FreezeParams {
+  tokenAccount: PublicKey;
+  authority: Keypair;
+}
+
+export interface ThawParams {
+  tokenAccount: PublicKey;
+  authority: Keypair;
 }
 
 export interface BlacklistParams {
@@ -44,7 +81,7 @@ export interface BlacklistParams {
 }
 
 export interface SeizeParams {
-  frozenAccount: PublicKey;
-  treasury: PublicKey;
+  sourceAccount: PublicKey;
+  treasuryAccount: PublicKey;
   seizer: Keypair;
 }
