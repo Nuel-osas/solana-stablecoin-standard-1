@@ -3,6 +3,8 @@ use anchor_lang::system_program;
 use spl_tlv_account_resolution::{
     account::ExtraAccountMeta, seeds::Seed, state::ExtraAccountMetaList,
 };
+use spl_token_2022::state::Account as TokenAccount;
+use spl_token_2022::extension::StateWithExtensions;
 use spl_transfer_hook_interface::instruction::ExecuteInstruction;
 
 declare_id!("63pY5GPBHKJ3gu99xTNH9yxUKgp8kUowiiHYzZtaE31E");
@@ -24,9 +26,19 @@ pub mod sss_transfer_hook {
     pub fn execute(ctx: Context<Execute>, amount: u64) -> Result<()> {
         // The transfer hook receives the source, mint, destination, and authority.
         // We need to check blacklist PDAs for both source owner and destination owner.
+        //
+        // Note: AccountInfo.owner is the *program* that owns the account (Token-2022),
+        // not the wallet. We must unpack the token account data to get the real owner.
 
-        let source_owner = ctx.accounts.source_account.owner;
-        let dest_owner = ctx.accounts.destination_account.owner;
+        let source_data = ctx.accounts.source_account.try_borrow_data()?;
+        let source_account = StateWithExtensions::<TokenAccount>::unpack(&source_data)
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+        let source_owner = source_account.base.owner;
+
+        let dest_data = ctx.accounts.destination_account.try_borrow_data()?;
+        let dest_account = StateWithExtensions::<TokenAccount>::unpack(&dest_data)
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+        let dest_owner = dest_account.base.owner;
         let stablecoin_key = ctx.accounts.stablecoin.key();
 
         // Check source blacklist
