@@ -1,0 +1,39 @@
+# Trident fuzzer configuration for sss-token
+# See https://ackee.xyz/trident/docs/latest/ for full reference.
+#
+# To run:
+#   cargo install trident-cli
+#   trident fuzz run fuzz_0
+
+[fuzz]
+# Number of fuzzing iterations (0 = unlimited until crash)
+iterations = 10000
+
+# Exit on first crash found
+exit_upon_crash = true
+
+# Timeout per instruction execution (seconds)
+timeout = 10
+
+# Seed for deterministic replay (0 = random)
+seed = 0
+
+# Number of concurrent fuzzing threads
+threads = 1
+
+# Dictionary file for interesting input values (optional)
+# dict = "trident-tests/fuzz_tests/fuzz_0/dict.txt"
+
+[accounts]
+# Number of additional accounts to generate in the environment
+# The fuzzer will create this many random keypairs as potential actors
+num_accounts = 10
+
+[honggfuzz]
+# Honggfuzz-specific settings (used under the hood)
+# See https://github.com/google/honggfuzz for options
+cargo_target_dir = "trident-tests/fuzz_tests/fuzzing"
+
+[test]
+# Validator settings for the local test environment
+validator_startup_timeout = 30
