@@ -1,0 +1,9 @@
+target/*
+!target/idl/
+!target/idl/*.json
+node_modules/
+.anchor/
+trident-tests/
+test-ledger/
+.git/
+*.so

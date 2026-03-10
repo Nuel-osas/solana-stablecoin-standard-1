@@ -21,7 +21,7 @@ Both programs are live on Solana Devnet:
 │  SSS-1 (Minimal)    SSS-2 (Compliant)           │
 ├─────────────────────────────────────────────────┤
 │              Layer 2 — Modules                   │
-│  Compliance Module    Privacy Module (SSS-3)     │
+│  Compliance Module                               │
 │  (Transfer Hook, Blacklist, Permanent Delegate)  │
 ├─────────────────────────────────────────────────┤
 │              Layer 1 — Base SDK                  │
@@ -36,7 +36,6 @@ Both programs are live on Solana Devnet:
 |----------|------|-------------|
 | **SSS-1** | Minimal Stablecoin | Mint authority + freeze authority + metadata. What's needed on every stable, nothing more. |
 | **SSS-2** | Compliant Stablecoin | SSS-1 + permanent delegate + transfer hook + blacklist enforcement. USDC/USDT-class compliance. |
-| **SSS-3** | Private Stablecoin | Confidential transfers + scoped allowlists. Experimental proof-of-concept. |
 
 ## Quick Start
 
@@ -176,6 +175,57 @@ No single key controls everything:
 | Transfer Hook | | ✓ | Blacklist enforcement on every transfer |
 | Default Account State | | Optional | Freeze new accounts by default |
 
+## Testing
+
+### Anchor Integration Tests
+
+```bash
+anchor test
+```
+
+### SDK Unit Tests
+
+```bash
+cd sdk/core && yarn test
+```
+
+### Backend API Tests
+
+```bash
+cd backend && yarn test
+```
+
+### Docker Smoke Test
+
+Builds and starts the full containerised stack (API + indexer), then runs 6 end-to-end checks against the live endpoints.
+
+```bash
+# Requires a Docker runtime (Docker Desktop or colima)
+colima start          # if using colima
+cd backend/docker
+./smoke-test.sh
+```
+
+The smoke test covers: health check, supply endpoint, events endpoint, audit log, and input validation on mint/blacklist write endpoints.
+
+### Trident Fuzz Testing
+
+Property-based fuzz testing via [Trident](https://github.com/Ackee-Blockchain/trident) (Ackee Blockchain). The harness executes real program instructions through `process_transaction` against a local SVM and checks invariants after each flow.
+
+```bash
+# Build programs first (Trident loads the .so binaries)
+anchor build
+
+# Run the fuzz test (default: 1000 iterations, 100 flow calls each)
+cd trident-tests/fuzz_tests/fuzz_0
+cargo run
+
+# Custom iteration count
+TRIDENT_ITERATIONS=5000 TRIDENT_FLOW_CALLS=200 cargo run
+```
+
+Fuzz flows cover: pause/unpause by authority, unauthorized pause/transfer rejection, authority transfer verification, and PDA uniqueness invariants across all role types.
+
 ## Development
 
 ```bash
@@ -184,9 +234,6 @@ yarn install
 
 # Build programs
 anchor build
-
-# Run tests
-anchor test
 
 # Build SDK
 cd sdk/core && yarn build

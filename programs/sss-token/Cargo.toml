@@ -22,4 +22,3 @@ anchor-lang = { version = "0.31.1", features = ["init-if-needed"] }
 anchor-spl = { version = "0.31.1", features = ["token", "token_2022", "associated_token", "metadata"] }
 spl-token-2022 = "6.0.0"
 spl-token-metadata-interface = "0.5.1"
-spl-transfer-hook-interface = "0.10.0"

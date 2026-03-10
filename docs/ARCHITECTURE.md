@@ -19,7 +19,6 @@ Every stablecoin uses Layer 1. It provides the minimum viable functionality for 
 Composable pieces that add capabilities on top of Layer 1:
 
 - **Compliance Module**: Transfer hook for blacklist enforcement, blacklist PDAs, permanent delegate for seizure
-- **Privacy Module** (SSS-3, experimental): Confidential transfers, scoped allowlists
 
 Each module is independently testable and optional. Modules are enabled at initialization time and cannot be changed afterward (by design — changing compliance guarantees after launch would undermine trust).
 

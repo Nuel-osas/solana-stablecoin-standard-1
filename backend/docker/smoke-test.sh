@@ -17,6 +17,7 @@ POLL_INTERVAL=2             # seconds between health polls
 COMPOSE_FILE="docker-compose.yml"
 PASS_COUNT=0
 FAIL_COUNT=0
+COMPOSE_CMD=()
 
 ###############################################################################
 # Helpers
@@ -29,6 +30,21 @@ NC='\033[0m' # No Color
 log()  { echo -e "${YELLOW}[smoke-test]${NC} $*"; }
 pass() { echo -e "  ${GREEN}PASS${NC} $*"; PASS_COUNT=$((PASS_COUNT + 1)); }
 fail() { echo -e "  ${RED}FAIL${NC} $*"; FAIL_COUNT=$((FAIL_COUNT + 1)); }
+
+detect_compose() {
+  if docker compose version &>/dev/null; then
+    COMPOSE_CMD=(docker compose)
+    return
+  fi
+
+  if command -v docker-compose &>/dev/null; then
+    COMPOSE_CMD=(docker-compose)
+    return
+  fi
+
+  echo "No Docker Compose command found. Install either the 'docker compose' plugin or 'docker-compose'." >&2
+  exit 1
+}
 
 # Detect jq availability; fall back to grep-based checks.
 HAS_JQ=false
@@ -63,7 +79,7 @@ json_has_field() {
 ###############################################################################
 cleanup() {
   log "Tearing down containers ..."
-  docker compose -f "$COMPOSE_FILE" down --volumes --remove-orphans 2>/dev/null || true
+  "${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" down --volumes --remove-orphans 2>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -72,12 +88,13 @@ trap cleanup EXIT
 ###############################################################################
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
+detect_compose
 
 log "Building Docker images ..."
-docker compose -f "$COMPOSE_FILE" build
+"${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" build
 
 log "Starting containers in detached mode ..."
-docker compose -f "$COMPOSE_FILE" up -d
+"${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" up -d
 
 ###############################################################################
 # Wait for health endpoint
@@ -93,7 +110,7 @@ while true; do
   if [ "$elapsed" -ge "$STARTUP_TIMEOUT" ]; then
     log "Timed out waiting for health endpoint after ${STARTUP_TIMEOUT}s."
     log "Container logs:"
-    docker compose -f "$COMPOSE_FILE" logs --tail=40 api || true
+    "${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" logs --tail=40 api || true
     exit 1
   fi
   sleep "$POLL_INTERVAL"

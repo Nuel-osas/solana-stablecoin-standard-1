@@ -244,6 +244,12 @@ Read endpoints (supply, blacklist check, events, audit log) do not require authe
 cd backend/docker
 docker compose up
 
+# If your Docker install exposes the legacy binary instead:
+docker-compose up
+
+# Smoke test the stack after startup:
+./smoke-test.sh
+
 # Services:
 # - API server: http://localhost:3000
 # - Event indexer: runs as background worker
