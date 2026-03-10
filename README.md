@@ -4,6 +4,15 @@ A modular SDK with opinionated presets covering the most common stablecoin archi
 
 Think **OpenZeppelin for stablecoins**: the library is the SDK, the standards (SSS-1, SSS-2) are opinionated presets that get adopted.
 
+## Devnet Deployment
+
+Both programs are live on Solana Devnet:
+
+| Program | Program ID | Deploy Tx |
+|---------|-----------|-----------|
+| **sss_token** | [`CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ`](https://explorer.solana.com/address/CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ?cluster=devnet) | [`3XS74f...SvhN79`](https://explorer.solana.com/tx/3XS74f8ofykb2fjiQWS3fzH6sTFMPkkW4JA85U43K6aWxsgPZraYa85NhuHLg5t2noXs6MQrv6ZgE7tSQ9SvhN79?cluster=devnet) |
+| **sss_transfer_hook** | [`63pY5GPBHKJ3gu99xTNH9yxUKgp8kUowiiHYzZtaE31E`](https://explorer.solana.com/address/63pY5GPBHKJ3gu99xTNH9yxUKgp8kUowiiHYzZtaE31E?cluster=devnet) | [`5QbKdk...PeSY1NU`](https://explorer.solana.com/tx/5QbKdkonnMv8X9wvNRFvCkozhEoCnCRxAwApgvaWzuHmHhGEGgtuurLz6C5piiqH4ywb5dhhAo5pfHExkKPSY1NU?cluster=devnet) |
+
 ## Architecture
 
 ```
@@ -185,13 +194,17 @@ cd sdk/core && yarn build
 
 ## Devnet Deployment
 
-```bash
-# Deploy to devnet
-solana config set --url devnet
-anchor deploy --provider.cluster devnet
+Programs are already deployed to devnet. To redeploy:
 
-# Program IDs will be output after deployment
+```bash
+solana config set --url devnet
+solana airdrop 5
+anchor deploy --provider.cluster devnet
 ```
+
+**Current Program IDs:**
+- `sss_token`: `CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ`
+- `sss_transfer_hook`: `63pY5GPBHKJ3gu99xTNH9yxUKgp8kUowiiHYzZtaE31E`
 
 ## License
 
