@@ -519,12 +519,157 @@
         },
         {
           "name": "token_program"
+        },
+        {
+          "name": "oracle_config",
+          "docs": [
+            "Optional: Oracle config PDA — if provided and enabled, price is validated"
+          ],
+          "optional": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stablecoin"
+              }
+            ]
+          }
+        },
+        {
+          "name": "price_feed",
+          "docs": [
+            "Optional: Pyth price feed account — required if oracle_config is provided"
+          ],
+          "optional": true
         }
       ],
       "args": [
         {
           "name": "amount",
           "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "configure_oracle",
+      "docs": [
+        "Configure oracle price enforcement for mint/burn operations.",
+        "When enabled, minting and burning will be rejected if the stablecoin",
+        "has depegged beyond the configured threshold.",
+        "Only master authority can call this."
+      ],
+      "discriminator": [
+        245,
+        58,
+        202,
+        16,
+        204,
+        36,
+        82,
+        199
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "stablecoin",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  98,
+                  108,
+                  101,
+                  99,
+                  111,
+                  105,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stablecoin.mint",
+                "account": "Stablecoin"
+              }
+            ]
+          }
+        },
+        {
+          "name": "oracle_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stablecoin"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "price_feed",
+          "type": "pubkey"
+        },
+        {
+          "name": "max_deviation_bps",
+          "type": "u16"
+        },
+        {
+          "name": "max_staleness_secs",
+          "type": "u64"
+        },
+        {
+          "name": "enabled",
+          "type": "bool"
         }
       ]
     },
@@ -850,6 +995,46 @@
         },
         {
           "name": "token_program"
+        },
+        {
+          "name": "oracle_config",
+          "docs": [
+            "Optional: Oracle config PDA — if provided and enabled, price is validated"
+          ],
+          "optional": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  111,
+                  114,
+                  97,
+                  99,
+                  108,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stablecoin"
+              }
+            ]
+          }
+        },
+        {
+          "name": "price_feed",
+          "docs": [
+            "Optional: Pyth price feed account — required if oracle_config is provided"
+          ],
+          "optional": true
         }
       ],
       "args": [
@@ -1886,6 +2071,19 @@
       ]
     },
     {
+      "name": "OracleConfig",
+      "discriminator": [
+        133,
+        196,
+        152,
+        50,
+        27,
+        21,
+        145,
+        254
+      ]
+    },
+    {
       "name": "RoleAssignment",
       "discriminator": [
         205,
@@ -2015,6 +2213,19 @@
         245,
         29,
         236
+      ]
+    },
+    {
+      "name": "OracleConfigured",
+      "discriminator": [
+        111,
+        102,
+        175,
+        86,
+        180,
+        219,
+        55,
+        79
       ]
     },
     {
@@ -2240,6 +2451,21 @@
       "code": 6020,
       "name": "NotAllowlisted",
       "msg": "Address is not on the allowlist"
+    },
+    {
+      "code": 6021,
+      "name": "OraclePriceStale",
+      "msg": "Oracle price is stale"
+    },
+    {
+      "code": 6022,
+      "name": "OraclePriceDepegged",
+      "msg": "Stablecoin price has depegged beyond the allowed threshold"
+    },
+    {
+      "code": 6023,
+      "name": "InvalidOracleFeed",
+      "msg": "Invalid oracle price feed"
     }
   ],
   "types": [
@@ -2549,6 +2775,96 @@
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OracleConfig",
+      "docs": [
+        "Oracle configuration for on-chain price validation.",
+        "Seeds: [\"oracle_config\", stablecoin_pubkey]"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "stablecoin",
+            "docs": [
+              "The stablecoin this oracle config belongs to"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "price_feed",
+            "docs": [
+              "Pyth price feed account address"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "max_deviation_bps",
+            "docs": [
+              "Maximum allowed deviation from $1.00 in basis points (e.g., 100 = 1%)"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "max_staleness_secs",
+            "docs": [
+              "Maximum staleness in seconds (reject prices older than this)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "enabled",
+            "docs": [
+              "Whether oracle enforcement is active"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "PDA bump"
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "OracleConfigured",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "price_feed",
+            "type": "pubkey"
+          },
+          {
+            "name": "max_deviation_bps",
+            "type": "u16"
+          },
+          {
+            "name": "max_staleness_secs",
+            "type": "u64"
+          },
+          {
+            "name": "enabled",
+            "type": "bool"
+          },
+          {
+            "name": "by",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
           }
         ]
       }

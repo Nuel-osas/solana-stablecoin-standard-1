@@ -5,6 +5,7 @@ const ROLE_SEED = Buffer.from("role");
 const BLACKLIST_SEED = Buffer.from("blacklist");
 const MINTER_INFO_SEED = Buffer.from("minter_info");
 const ALLOWLIST_SEED = Buffer.from("allowlist");
+const ORACLE_CONFIG_SEED = Buffer.from("oracle_config");
 
 export function findStablecoinPDA(
   mint: PublicKey,
@@ -57,6 +58,16 @@ export function findAllowlistPDA(
 ): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
     [ALLOWLIST_SEED, stablecoin.toBuffer(), address.toBuffer()],
+    programId
+  );
+}
+
+export function findOracleConfigPDA(
+  stablecoin: PublicKey,
+  programId: PublicKey
+): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [ORACLE_CONFIG_SEED, stablecoin.toBuffer()],
     programId
   );
 }

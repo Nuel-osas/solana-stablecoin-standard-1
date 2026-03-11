@@ -158,6 +158,18 @@ function getAllowlistPDA(
   );
 }
 
+function getOracleConfigPDA(
+  stablecoinPDA: PublicKey
+): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("oracle_config"),
+      stablecoinPDA.toBuffer(),
+    ],
+    PROGRAM_ID
+  );
+}
+
 function requireMint(opts: any): PublicKey {
   if (!opts.mint) {
     console.error("Error: --mint <address> is required for this command.");
@@ -1492,6 +1504,61 @@ cli
       console.log(`\n${c.dim}Monitor stopped.${c.reset}`);
       process.exit(0);
     });
+  });
+
+// ── On-Chain Oracle Configuration ──────────────────────────────────
+
+cli
+  .command("configure-oracle")
+  .description("Configure on-chain oracle price enforcement for mint/burn operations")
+  .requiredOption("--mint <address>", "Stablecoin mint address")
+  .requiredOption("--price-feed <address>", "Pyth price feed account address (on-chain)")
+  .option("--max-deviation <bps>", "Maximum deviation from $1.00 in basis points", "100")
+  .option("--max-staleness <secs>", "Maximum price staleness in seconds", "60")
+  .option("--disable", "Disable oracle enforcement")
+  .option("--keypair <path>", "Path to authority keypair JSON")
+  .option("--cluster <url>", "Solana cluster URL", "https://api.devnet.solana.com")
+  .action(async (opts) => {
+    const keypairPath = opts.keypair || `${process.env.HOME}/.config/solana/id.json`;
+    const authority = loadKeypair(keypairPath);
+    const connection = getConnection(opts.cluster);
+    const program = getProgram(connection, authority);
+
+    const mint = requireMint(opts);
+    const priceFeed = new PublicKey(opts.priceFeed);
+    const maxDeviationBps = parseInt(opts.maxDeviation);
+    const maxStalenessSecs = parseInt(opts.maxStaleness);
+    const enabled = !opts.disable;
+
+    const [stablecoinPDA] = getStablecoinPDA(mint);
+    const [oracleConfigPDA] = getOracleConfigPDA(stablecoinPDA);
+
+    console.log(`\n${c.bold}Configure Oracle${c.reset}`);
+    console.log(`  Mint:           ${mint.toBase58()}`);
+    console.log(`  Price Feed:     ${priceFeed.toBase58()}`);
+    console.log(`  Max Deviation:  ${maxDeviationBps} bps (${(maxDeviationBps / 100).toFixed(2)}%)`);
+    console.log(`  Max Staleness:  ${maxStalenessSecs}s`);
+    console.log(`  Enabled:        ${enabled}`);
+    console.log(`  Oracle PDA:     ${oracleConfigPDA.toBase58()}`);
+
+    try {
+      const txSig = await program.methods
+        .configureOracle(priceFeed, maxDeviationBps, new anchor.BN(maxStalenessSecs), enabled)
+        .accounts({
+          authority: authority.publicKey,
+          stablecoin: stablecoinPDA,
+          oracleConfig: oracleConfigPDA,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([authority])
+        .rpc();
+
+      console.log(`\n  ${c.green}Oracle configured successfully!${c.reset}`);
+      console.log(`  TX: ${txSig}`);
+    } catch (err: any) {
+      console.error(`\n  ${c.red}Error:${c.reset} ${err.message}`);
+      process.exit(1);
+    }
   });
 
 cli.parse();

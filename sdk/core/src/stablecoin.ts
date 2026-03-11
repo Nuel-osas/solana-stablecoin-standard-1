@@ -7,7 +7,7 @@ import {
 } from "@solana/web3.js";
 import { TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
 import * as anchor from "@coral-xyz/anchor";
-import { findStablecoinPDA, findRolePDA, findMinterInfoPDA } from "./pda";
+import { findStablecoinPDA, findRolePDA, findMinterInfoPDA, findOracleConfigPDA } from "./pda";
 import { ComplianceModule } from "./compliance";
 import { roleToAnchorEnum } from "./types";
 import type {
@@ -620,6 +620,42 @@ export class SolanaStablecoin {
         minterInfo: minterInfoPDA,
       })
       .signers([authority])
+      .rpc();
+
+    return txSig;
+  }
+
+  /**
+   * Configure oracle price enforcement for mint/burn operations.
+   * When enabled, minting/burning will be rejected if the stablecoin depegs
+   * beyond the configured threshold.
+   */
+  async configureOracle(params: {
+    authority: Keypair;
+    priceFeed: PublicKey;
+    maxDeviationBps: number;
+    maxStalenessSecs: number;
+    enabled: boolean;
+  }): Promise<string> {
+    const [oracleConfigPDA] = findOracleConfigPDA(
+      this.stablecoinPDA,
+      this.programId
+    );
+
+    const txSig = await this.program.methods
+      .configureOracle(
+        params.priceFeed,
+        params.maxDeviationBps,
+        new anchor.BN(params.maxStalenessSecs),
+        params.enabled
+      )
+      .accounts({
+        authority: params.authority.publicKey,
+        stablecoin: this.stablecoinPDA,
+        oracleConfig: oracleConfigPDA,
+        systemProgram: SystemProgram.programId,
+      })
+      .signers([params.authority])
       .rpc();
 
     return txSig;
