@@ -22,7 +22,7 @@ import type {
 
 import idlJson from "./idl/sss_token.json";
 
-const PROGRAM_ID = new PublicKey("CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ");
+const PROGRAM_ID = new PublicKey("BXG5KG57ef5vgZdA4mWjBYfrFPyaaZEvdHCmGsuj7vbq");
 
 export enum Presets {
   SSS_1 = "SSS_1",

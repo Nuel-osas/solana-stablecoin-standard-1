@@ -3,7 +3,7 @@ use trident_fuzz::fuzzing::*;
 
 mod fuzz_accounts;
 
-const SSS_TOKEN_PROGRAM_ID: Pubkey = pubkey!("CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ");
+const SSS_TOKEN_PROGRAM_ID: Pubkey = pubkey!("BXG5KG57ef5vgZdA4mWjBYfrFPyaaZEvdHCmGsuj7vbq");
 
 const STABLECOIN_SEED: &[u8] = b"stablecoin";
 const ROLE_SEED: &[u8] = b"role";

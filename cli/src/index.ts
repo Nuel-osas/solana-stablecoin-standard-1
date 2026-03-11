@@ -23,10 +23,10 @@ import * as path from "path";
 const idl = require("./idl/sss_token.json");
 
 const PROGRAM_ID = new PublicKey(
-  "CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ"
+  "BXG5KG57ef5vgZdA4mWjBYfrFPyaaZEvdHCmGsuj7vbq"
 );
 const TRANSFER_HOOK_PROGRAM_ID = new PublicKey(
-  "63pY5GPBHKJ3gu99xTNH9yxUKgp8kUowiiHYzZtaE31E"
+  "B9HzG9fuxbuJBG2wTSP6UmxBSQLdaUAk62Kcdf41WxAt"
 );
 
 const cli = new Command();

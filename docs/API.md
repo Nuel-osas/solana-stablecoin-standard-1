@@ -263,7 +263,7 @@ The Docker build context is the repo root, so run from `backend/docker/`.
 ```env
 # Required
 SOLANA_RPC_URL=https://api.devnet.solana.com
-PROGRAM_ID=CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ
+PROGRAM_ID=BXG5KG57ef5vgZdA4mWjBYfrFPyaaZEvdHCmGsuj7vbq
 STABLECOIN_MINT=<mint_address>
 
 # Operator (required for write endpoints)

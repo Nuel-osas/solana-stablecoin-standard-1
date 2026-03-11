@@ -9,7 +9,7 @@ pub mod state;
 use instructions::*;
 use state::{StablecoinInitConfig, Role};
 
-declare_id!("CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ");
+declare_id!("BXG5KG57ef5vgZdA4mWjBYfrFPyaaZEvdHCmGsuj7vbq");
 
 #[cfg(not(feature = "no-entrypoint"))]
 use solana_security_txt::security_txt;

@@ -10,8 +10,8 @@ Both programs are live on Solana Devnet:
 
 | Program | Program ID | Deploy Tx |
 |---------|-----------|-----------|
-| **sss_token** | [`CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ`](https://explorer.solana.com/address/CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ?cluster=devnet) | [`3XS74f...SvhN79`](https://explorer.solana.com/tx/3XS74f8ofykb2fjiQWS3fzH6sTFMPkkW4JA85U43K6aWxsgPZraYa85NhuHLg5t2noXs6MQrv6ZgE7tSQ9SvhN79?cluster=devnet) |
-| **sss_transfer_hook** | [`63pY5GPBHKJ3gu99xTNH9yxUKgp8kUowiiHYzZtaE31E`](https://explorer.solana.com/address/63pY5GPBHKJ3gu99xTNH9yxUKgp8kUowiiHYzZtaE31E?cluster=devnet) | [`5QbKdk...PeSY1NU`](https://explorer.solana.com/tx/5QbKdkonnMv8X9wvNRFvCkozhEoCnCRxAwApgvaWzuHmHhGEGgtuurLz6C5piiqH4ywb5dhhAo5pfHExkKPSY1NU?cluster=devnet) |
+| **sss_token** | [`BXG5KG57ef5vgZdA4mWjBYfrFPyaaZEvdHCmGsuj7vbq`](https://explorer.solana.com/address/BXG5KG57ef5vgZdA4mWjBYfrFPyaaZEvdHCmGsuj7vbq?cluster=devnet) | [`3XS74f...SvhN79`](https://explorer.solana.com/tx/3XS74f8ofykb2fjiQWS3fzH6sTFMPkkW4JA85U43K6aWxsgPZraYa85NhuHLg5t2noXs6MQrv6ZgE7tSQ9SvhN79?cluster=devnet) |
+| **sss_transfer_hook** | [`B9HzG9fuxbuJBG2wTSP6UmxBSQLdaUAk62Kcdf41WxAt`](https://explorer.solana.com/address/B9HzG9fuxbuJBG2wTSP6UmxBSQLdaUAk62Kcdf41WxAt?cluster=devnet) | [`5QbKdk...PeSY1NU`](https://explorer.solana.com/tx/5QbKdkonnMv8X9wvNRFvCkozhEoCnCRxAwApgvaWzuHmHhGEGgtuurLz6C5piiqH4ywb5dhhAo5pfHExkKPSY1NU?cluster=devnet) |
 
 ## Architecture
 
@@ -259,8 +259,8 @@ anchor deploy --provider.cluster devnet
 ```
 
 **Current Program IDs:**
-- `sss_token`: `CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ`
-- `sss_transfer_hook`: `63pY5GPBHKJ3gu99xTNH9yxUKgp8kUowiiHYzZtaE31E`
+- `sss_token`: `BXG5KG57ef5vgZdA4mWjBYfrFPyaaZEvdHCmGsuj7vbq`
+- `sss_transfer_hook`: `B9HzG9fuxbuJBG2wTSP6UmxBSQLdaUAk62Kcdf41WxAt`
 
 ## License
 

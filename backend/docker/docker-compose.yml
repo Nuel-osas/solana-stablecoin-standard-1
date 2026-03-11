@@ -7,7 +7,7 @@ services:
       - "3000:3000"
     environment:
       - SOLANA_RPC_URL=${SOLANA_RPC_URL:-https://api.devnet.solana.com}
-      - PROGRAM_ID=${PROGRAM_ID:-CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ}
+      - PROGRAM_ID=${PROGRAM_ID:-BXG5KG57ef5vgZdA4mWjBYfrFPyaaZEvdHCmGsuj7vbq}
       - STABLECOIN_MINT=${STABLECOIN_MINT}
       - OPERATOR_KEYPAIR=${OPERATOR_KEYPAIR:-}
       - AUDIT_LOG_PATH=/app/data/audit.log
@@ -33,7 +33,7 @@ services:
     command: ["node", "dist/indexer.js"]
     environment:
       - SOLANA_RPC_URL=${SOLANA_RPC_URL:-https://api.devnet.solana.com}
-      - PROGRAM_ID=${PROGRAM_ID:-CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ}
+      - PROGRAM_ID=${PROGRAM_ID:-BXG5KG57ef5vgZdA4mWjBYfrFPyaaZEvdHCmGsuj7vbq}
       - STABLECOIN_MINT=${STABLECOIN_MINT}
       - EVENTS_STORE_PATH=/app/data/events.ndjson
       - LOG_LEVEL=${LOG_LEVEL:-info}

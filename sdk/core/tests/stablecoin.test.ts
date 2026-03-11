@@ -10,7 +10,7 @@ import { Presets, SolanaStablecoin } from "../src/stablecoin";
 import { ComplianceModule } from "../src/compliance";
 import type { StablecoinConfig } from "../src/types";
 
-const programId = new PublicKey("CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ");
+const programId = new PublicKey("BXG5KG57ef5vgZdA4mWjBYfrFPyaaZEvdHCmGsuj7vbq");
 
 describe("SSS SDK", () => {
   const mint = Keypair.generate().publicKey;

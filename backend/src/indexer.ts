@@ -3,7 +3,7 @@ import * as crypto from "crypto";
 import * as fs from "fs";
 
 const RPC_URL = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
-const PROGRAM_ID = process.env.PROGRAM_ID || "CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ";
+const PROGRAM_ID = process.env.PROGRAM_ID || "BXG5KG57ef5vgZdA4mWjBYfrFPyaaZEvdHCmGsuj7vbq";
 const EVENTS_STORE_PATH = process.env.EVENTS_STORE_PATH || "./events.ndjson";
 
 const connection = new Connection(RPC_URL, "confirmed");

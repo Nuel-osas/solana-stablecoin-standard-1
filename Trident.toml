@@ -2,9 +2,9 @@
 enabled = true
 
 [[fuzz.programs]]
-address = "CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ"
+address = "BXG5KG57ef5vgZdA4mWjBYfrFPyaaZEvdHCmGsuj7vbq"
 program = "target/deploy/sss_token.so"
 
 [[fuzz.programs]]
-address = "63pY5GPBHKJ3gu99xTNH9yxUKgp8kUowiiHYzZtaE31E"
+address = "B9HzG9fuxbuJBG2wTSP6UmxBSQLdaUAk62Kcdf41WxAt"
 program = "target/deploy/sss_transfer_hook.so"

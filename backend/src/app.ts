@@ -16,7 +16,7 @@ const app = express();
 app.use(express.json());
 
 const RPC_URL = process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com";
-const PROGRAM_ID_STR = process.env.PROGRAM_ID || "CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ";
+const PROGRAM_ID_STR = process.env.PROGRAM_ID || "BXG5KG57ef5vgZdA4mWjBYfrFPyaaZEvdHCmGsuj7vbq";
 const STABLECOIN_MINT_STR = process.env.STABLECOIN_MINT;
 const OPERATOR_KEYPAIR_PATH = process.env.OPERATOR_KEYPAIR || "";
 const AUDIT_LOG_PATH = process.env.AUDIT_LOG_PATH || "./audit.log";

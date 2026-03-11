@@ -7,7 +7,7 @@ use spl_token_2022::state::Account as TokenAccount;
 use spl_token_2022::extension::StateWithExtensions;
 use spl_transfer_hook_interface::instruction::ExecuteInstruction;
 
-declare_id!("63pY5GPBHKJ3gu99xTNH9yxUKgp8kUowiiHYzZtaE31E");
+declare_id!("B9HzG9fuxbuJBG2wTSP6UmxBSQLdaUAk62Kcdf41WxAt");
 
 #[cfg(not(feature = "no-entrypoint"))]
 use solana_security_txt::security_txt;
@@ -25,7 +25,7 @@ security_txt! {
 
 /// The sss-token program ID — blacklist/allowlist PDAs are owned by this program.
 const SSS_TOKEN_PROGRAM_ID: Pubkey =
-    pubkey!("CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ");
+    pubkey!("BXG5KG57ef5vgZdA4mWjBYfrFPyaaZEvdHCmGsuj7vbq");
 
 /// Seeds used by the main sss-token program
 const STABLECOIN_SEED: &[u8] = b"stablecoin";

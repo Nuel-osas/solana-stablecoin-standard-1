@@ -5,12 +5,12 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-sss_token = "CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ"
-sss_transfer_hook = "63pY5GPBHKJ3gu99xTNH9yxUKgp8kUowiiHYzZtaE31E"
+sss_token = "BXG5KG57ef5vgZdA4mWjBYfrFPyaaZEvdHCmGsuj7vbq"
+sss_transfer_hook = "B9HzG9fuxbuJBG2wTSP6UmxBSQLdaUAk62Kcdf41WxAt"
 
 [programs.localnet]
-sss_token = "CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ"
-sss_transfer_hook = "63pY5GPBHKJ3gu99xTNH9yxUKgp8kUowiiHYzZtaE31E"
+sss_token = "BXG5KG57ef5vgZdA4mWjBYfrFPyaaZEvdHCmGsuj7vbq"
+sss_transfer_hook = "B9HzG9fuxbuJBG2wTSP6UmxBSQLdaUAk62Kcdf41WxAt"
 
 [registry]
 url = "https://api.apr.dev"
