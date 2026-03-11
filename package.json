@@ -4,7 +4,8 @@
   "private": true,
   "description": "Solana Stablecoin Standard (SSS) — Modular SDK with opinionated presets for stablecoin architectures on Solana",
   "workspaces": [
-    "sdk/core"
+    "sdk/core",
+    "tui"
   ],
   "scripts": {
     "build": "yarn workspaces run build",
@@ -13,7 +14,8 @@
     "test:sdk": "yarn workspaces run test",
     "test:ct": "./scripts/test-confidential-transfer.sh",
     "clean": "yarn workspaces run clean",
-    "cli": "npx ts-node cli/src/index.ts"
+    "cli": "npx ts-node cli/src/index.ts",
+    "tui": "cd tui && npx ts-node src/index.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",

@@ -723,4 +723,59 @@ app.delete("/api/v1/webhooks/:id", authMiddleware, (req, res) => {
   res.json({ deleted: idx >= 0 });
 });
 
+// ============ Oracle Price Feed ============
+
+const ORACLE_FEED_IDS: Record<string, string> = {
+  "usdc": "eaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a",
+  "usdt": "2b89b9dc8fdf9f34709a5b106b472f0f39bb6ca9ce04b0fd7f2e971688e2e53b",
+  "sol":  "ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d",
+};
+
+app.get("/api/v1/oracle/price", async (req, res) => {
+  try {
+    const feedParam = (req.query.feed as string || "").toLowerCase();
+    if (!feedParam) {
+      return res.status(400).json({ error: "feed query parameter is required (e.g. ?feed=usdc)" });
+    }
+
+    const feedId = feedParam in ORACLE_FEED_IDS
+      ? ORACLE_FEED_IDS[feedParam]
+      : feedParam.replace(/^0x/, "");
+
+    const url = `https://hermes.pyth.network/v2/updates/price/latest?ids[]=${feedId}`;
+    const pythRes = await fetch(url);
+    if (!pythRes.ok) {
+      return res.status(502).json({ error: `Pyth Hermes API error: ${pythRes.status} ${pythRes.statusText}` });
+    }
+
+    const json = (await pythRes.json()) as any;
+    if (!json.parsed || json.parsed.length === 0) {
+      return res.status(404).json({ error: `No price data returned for feed: ${feedParam}` });
+    }
+
+    const parsed = json.parsed[0];
+    const priceInfo = parsed.price;
+    const price = Number(priceInfo.price) * Math.pow(10, priceInfo.expo);
+    const confidence = Number(priceInfo.conf) * Math.pow(10, priceInfo.expo);
+    const deviation = Math.abs(price - 1.0);
+    const isDepegged = deviation >= 0.01;
+
+    res.json({
+      feed: feedParam,
+      feedId,
+      price,
+      confidence,
+      expo: priceInfo.expo,
+      publishTime: priceInfo.publish_time,
+      peg: {
+        deviation,
+        deviationPercent: (deviation * 100).toFixed(4) + "%",
+        isDepegged,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default app;
