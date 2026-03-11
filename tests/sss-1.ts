@@ -161,6 +161,8 @@ describe("SSS-1: Minimal Stablecoin", () => {
         minterInfo: minterInfoPDA,
         recipientTokenAccount: recipientATA,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
+        oracleConfig: null,
+        priceFeed: null,
       })
       .signers([minterKeypair])
       .rpc();
@@ -223,6 +225,8 @@ describe("SSS-1: Minimal Stablecoin", () => {
         minterInfo: minterInfoPDA,
         recipientTokenAccount: burnerATA,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
+        oracleConfig: null,
+        priceFeed: null,
       })
       .signers([minterKeypair])
       .rpc();
@@ -238,6 +242,8 @@ describe("SSS-1: Minimal Stablecoin", () => {
         roleAssignment: burnerRolePDA,
         burnFrom: burnerATA,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
+        oracleConfig: null,
+        priceFeed: null,
       })
       .signers([burnerKeypair])
       .rpc();
@@ -317,6 +323,8 @@ describe("SSS-1: Minimal Stablecoin", () => {
           minterInfo: minterInfoPDA,
           recipientTokenAccount: recipientATA,
           tokenProgram: TOKEN_2022_PROGRAM_ID,
+          oracleConfig: null,
+          priceFeed: null,
         })
         .signers([minterKeypair])
         .rpc();

@@ -262,6 +262,8 @@ describe("SSS-2: Compliant Stablecoin", () => {
         minterInfo: minterInfoPDA,
         recipientTokenAccount: targetATA,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
+        oracleConfig: null,
+        priceFeed: null,
       })
       .signers([minter])
       .rpc();

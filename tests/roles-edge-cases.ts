@@ -161,6 +161,8 @@ describe("Roles & Edge Cases", () => {
           minterInfo: minterInfoPDA,
           recipientTokenAccount: recipientATA,
           tokenProgram: TOKEN_2022_PROGRAM_ID,
+          oracleConfig: null,
+          priceFeed: null,
         })
         .signers([minterKeypair])
         .rpc();
@@ -196,6 +198,8 @@ describe("Roles & Edge Cases", () => {
         minterInfo: minterInfoPDA,
         recipientTokenAccount: recipientATA,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
+        oracleConfig: null,
+        priceFeed: null,
       })
       .signers([minterKeypair])
       .rpc();
@@ -307,6 +311,8 @@ describe("Roles & Edge Cases", () => {
         minterInfo: minterInfoPDA,
         recipientTokenAccount: burnerATA,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
+        oracleConfig: null,
+        priceFeed: null,
       })
       .signers([minterKeypair])
       .rpc();
@@ -333,6 +339,8 @@ describe("Roles & Edge Cases", () => {
           roleAssignment: burnerRolePDA,
           burnFrom: burnerATA,
           tokenProgram: TOKEN_2022_PROGRAM_ID,
+          oracleConfig: null,
+          priceFeed: null,
         })
         .signers([burnerKeypair])
         .rpc();
@@ -354,6 +362,8 @@ describe("Roles & Edge Cases", () => {
           minterInfo: minterInfoPDA,
           recipientTokenAccount: recipientATA,
           tokenProgram: TOKEN_2022_PROGRAM_ID,
+          oracleConfig: null,
+          priceFeed: null,
         })
         .signers([minterKeypair])
         .rpc();
@@ -502,6 +512,8 @@ describe("Roles & Edge Cases", () => {
         roleAssignment: burnerRolePDA,
         burnFrom: burnerATA,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
+        oracleConfig: null,
+        priceFeed: null,
       })
       .signers([burnerKeypair])
       .rpc();

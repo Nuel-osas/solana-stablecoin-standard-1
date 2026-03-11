@@ -356,6 +356,8 @@ describe("SSS-3: Private Stablecoin (Allowlist)", () => {
         minterInfo: minterInfoPDA,
         recipientTokenAccount: allowedUserATA,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
+        oracleConfig: null,
+        priceFeed: null,
       })
       .signers([minterKeypair])
       .rpc();

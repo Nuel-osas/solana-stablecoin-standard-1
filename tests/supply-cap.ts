@@ -130,6 +130,8 @@ describe("Supply Cap & Minter Quotas", () => {
         minterInfo: minterInfoPDA,
         recipientTokenAccount: recipientATA,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
+        oracleConfig: null,
+        priceFeed: null,
       })
       .signers([minterKeypair])
       .rpc();
@@ -150,6 +152,8 @@ describe("Supply Cap & Minter Quotas", () => {
           minterInfo: minterInfoPDA,
           recipientTokenAccount: recipientATA,
           tokenProgram: TOKEN_2022_PROGRAM_ID,
+          oracleConfig: null,
+          priceFeed: null,
         })
         .signers([minterKeypair])
         .rpc();
@@ -170,6 +174,8 @@ describe("Supply Cap & Minter Quotas", () => {
         minterInfo: minterInfoPDA,
         recipientTokenAccount: recipientATA,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
+        oracleConfig: null,
+        priceFeed: null,
       })
       .signers([minterKeypair])
       .rpc();
@@ -234,6 +240,8 @@ describe("Supply Cap & Minter Quotas", () => {
         minterInfo: minterInfoPDA,
         recipientTokenAccount: recipientATA,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
+        oracleConfig: null,
+        priceFeed: null,
       })
       .signers([minterKeypair])
       .rpc();
@@ -271,6 +279,8 @@ describe("Supply Cap & Minter Quotas", () => {
           minterInfo: minterInfoPDA,
           recipientTokenAccount: recipientATA,
           tokenProgram: TOKEN_2022_PROGRAM_ID,
+          oracleConfig: null,
+          priceFeed: null,
         })
         .signers([minterKeypair])
         .rpc();
