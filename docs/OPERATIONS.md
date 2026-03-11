@@ -100,10 +100,24 @@ sss-token minters add --address <PUBKEY> --quota 1000000000
 
 ### Rotating Keys
 
+Two-step authority transfer prevents loss from typos (inspired by Circle FiatToken v2):
+
 ```bash
-# Transfer master authority
-# This is irreversible — double check the new authority
-sss-token transfer-authority --new-authority <NEW_PUBKEY>
+# Step 1: Current authority nominates the new authority
+sss-token nominate-authority --new-authority <NEW_PUBKEY> --mint <MINT>
+
+# Step 2: New authority accepts (must sign with the nominated key)
+sss-token accept-authority --mint <MINT>
+```
+
+### Supply Cap
+
+```bash
+# Set a supply cap (enforced on every mint)
+sss-token set-supply-cap --cap 1000000000 --mint <MINT>
+
+# Remove supply cap (set to 0 = unlimited)
+sss-token set-supply-cap --cap 0 --mint <MINT>
 ```
 
 ## Monitoring

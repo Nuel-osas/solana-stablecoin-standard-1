@@ -164,7 +164,7 @@ Response (fallback — no indexed events yet):
 }
 ```
 
-Supported event types (from the on-chain program): `StablecoinInitialized`, `TokensMinted`, `TokensBurned`, `AccountFrozen`, `AccountThawed`, `Paused`, `Unpaused`, `RoleAssigned`, `RoleRevoked`, `AuthorityTransferred`, `BlacklistAdded`, `BlacklistRemoved`, `TokensSeized`.
+Supported event types (from the on-chain program): `StablecoinInitialized`, `TokensMinted`, `TokensBurned`, `AccountFrozen`, `AccountThawed`, `Paused`, `Unpaused`, `RoleAssigned`, `RoleRevoked`, `AuthorityNominated`, `AuthorityTransferred`, `SupplyCapUpdated`, `BlacklistAdded`, `BlacklistRemoved`, `TokensSeized`, `AllowlistAdded`, `AllowlistRemoved`.
 
 ### Audit Log
 

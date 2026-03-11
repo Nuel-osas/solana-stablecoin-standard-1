@@ -114,10 +114,11 @@ await stable.revokeRole({
 ### Blacklist
 
 ```typescript
-// Add to blacklist
+// Add to blacklist (requires blacklister keypair)
 await stable.compliance.blacklistAdd(
   addressPublicKey,
-  "OFAC sanctions match"
+  "OFAC sanctions match",
+  blacklisterKeypair
 );
 
 // Check if blacklisted
@@ -127,17 +128,46 @@ const isBlacklisted = await stable.compliance.isBlacklisted(addressPublicKey);
 const entry = await stable.compliance.getBlacklistEntry(addressPublicKey);
 // { address, reason, blacklistedAt, blacklistedBy }
 
-// Remove from blacklist
-await stable.compliance.blacklistRemove(addressPublicKey);
+// Remove from blacklist (requires blacklister keypair)
+await stable.compliance.blacklistRemove(addressPublicKey, blacklisterKeypair);
 ```
 
 ### Seize
 
 ```typescript
-await stable.compliance.seize(
-  frozenAccountPublicKey,
-  treasuryPublicKey
-);
+await stable.compliance.seize({
+  sourceAccount: frozenAccountPublicKey,
+  treasuryAccount: treasuryPublicKey,
+  seizer: seizerKeypair,
+});
+```
+
+## Allowlist Module (SSS-3)
+
+```typescript
+// Add to allowlist (master authority only)
+await stable.compliance.allowlistAdd(addressPublicKey, authorityKeypair);
+
+// Remove from allowlist
+await stable.compliance.allowlistRemove(addressPublicKey, authorityKeypair);
+
+// Check if allowlisted
+const isAllowed = await stable.compliance.isAllowlisted(addressPublicKey);
+
+// Get allowlist entry details
+const entry = await stable.compliance.getAllowlistEntry(addressPublicKey);
+// { address, stablecoin, addedBy, addedAt }
+```
+
+## Authority & Supply Cap
+
+```typescript
+// Two-step authority transfer (prevents loss from typos)
+await stable.nominateAuthority(currentAuthorityKeypair, newAuthorityPubkey);
+await stable.acceptAuthority(newAuthorityKeypair);
+
+// Set supply cap (0 = unlimited)
+await stable.setSupplyCap(authorityKeypair, 1_000_000_000);
 ```
 
 ## Query Functions
@@ -154,10 +184,11 @@ const state = await stable.getState();
 ## PDA Helpers
 
 ```typescript
-import { findStablecoinPDA, findRolePDA, findBlacklistPDA, findMinterInfoPDA } from "@stbr/sss-token";
+import { findStablecoinPDA, findRolePDA, findBlacklistPDA, findMinterInfoPDA, findAllowlistPDA } from "@stbr/sss-token";
 
 const [stablecoinPDA, bump] = findStablecoinPDA(mintPublicKey, programId);
 const [rolePDA] = findRolePDA(stablecoinPDA, "minter", assigneePublicKey, programId);
 const [blacklistPDA] = findBlacklistPDA(stablecoinPDA, addressPublicKey, programId);
 const [minterInfoPDA] = findMinterInfoPDA(stablecoinPDA, minterPublicKey, programId);
+const [allowlistPDA] = findAllowlistPDA(stablecoinPDA, addressPublicKey, programId);
 ```
