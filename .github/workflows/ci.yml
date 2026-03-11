@@ -7,7 +7,7 @@ on:
     branches: [main, master]
 
 env:
-  SOLANA_VERSION: "2.1.21"
+  SOLANA_VERSION: "2.2.12"
   ANCHOR_VERSION: "0.31.1"
   NODE_VERSION: "20"
 
