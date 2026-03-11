@@ -179,7 +179,8 @@ solana-stablecoin-standard/
 │   │       │   ├── pause.rs      # Global pause/unpause
 │   │       │   ├── roles.rs      # RBAC, authority transfer, supply cap
 │   │       │   ├── compliance.rs # Blacklist + seize (SSS-2)
-│   │       │   └── allowlist.rs  # Allowlist management (SSS-3)
+│   │       │   ├── allowlist.rs  # Allowlist management (SSS-3)
+│   │       │   └── oracle.rs    # Pyth oracle price enforcement
 │   │       ├── error.rs          # Error codes
 │   │       ├── events.rs         # Event definitions (all timestamped)
 │   │       └── constants.rs      # Seeds and limits
@@ -226,6 +227,38 @@ Master authority can also perform any role's action directly without needing a r
 - **Role separation**: No single key controls everything — see RBAC table above
 - **Immutable compliance config**: SSS-1/SSS-2/SSS-3 extensions set at init, cannot be changed afterward
 - **PDA authority model**: All sensitive operations use program-derived authority, not EOA keys
+- **On-chain oracle enforcement**: Optional Pyth price validation rejects mint/burn during depeg events
+
+## Oracle Price Enforcement (Pyth)
+
+Optional on-chain price validation during mint/burn operations. When configured, the program reads the Pyth price feed directly on-chain and rejects operations if the stablecoin has depegged beyond the configured threshold.
+
+```bash
+# Configure oracle (authority-only)
+yarn cli configure-oracle \
+  --mint <address> \
+  --price-feed <pyth-account> \
+  --max-deviation 100 \    # 1% max deviation from $1.00
+  --max-staleness 60       # reject prices older than 60s
+
+# Disable oracle enforcement
+yarn cli configure-oracle --mint <address> --price-feed <pyth-account> --disable
+```
+
+```typescript
+// SDK
+await stablecoin.configureOracle({
+  authority,
+  priceFeed: pythUsdcFeedAccount,
+  maxDeviationBps: 100,      // 1%
+  maxStalenessSecs: 60,
+  enabled: true,
+});
+```
+
+**How it works:** The `oracle_config` and `price_feed` accounts are optional on `mint_tokens` and `burn_tokens`. When present and enabled, `validate_oracle_price` reads the Pyth price feed, computes deviation from $1.00 in basis points, and rejects the transaction if the price is stale or depegged. When not present, mint/burn work exactly as before (backwards compatible).
+
+**Design choice:** Pyth devnet price feed accounts contain live data updated by Pyth publishers. Cloned Pyth accounts on a local validator go stale immediately (frozen timestamp), so oracle integration tests run on devnet intentionally — see the test environment table below.
 
 ## Token-2022 Extensions Used
 
@@ -284,14 +317,27 @@ Phase 1 runs `anchor test` to verify our SSS-3 program initializes the `Confiden
   58 passing
 ```
 
+### Test Environment Matrix
+
+| Command | Environment | What it tests | Why that environment |
+|---------|-------------|---------------|---------------------|
+| `anchor test` | Local validator | Core program logic (58 tests) | Deterministic, no network dependency |
+| `yarn test:sdk` | Local/unit | SDK TypeScript modules | Pure unit tests |
+| `yarn test:ct` | Localnet (custom validator) | SSS-3 confidential transfer flow | Requires Token-2022 v10 with `zk-ops` |
+| `yarn test:oracle:devnet` | **Devnet** | Oracle price enforcement (4 tests) | Pyth price feeds are live external accounts — cloned accounts on local validator go stale immediately |
+| `yarn --cwd backend test` | Local | Backend API endpoints | No chain dependency |
+
 ### Run Tests
 
 ```bash
-# Anchor integration tests (58 tests)
+# Core program tests (local validator, deterministic)
 anchor test
 
 # SSS-3 confidential transfer full flow (localnet, builds Token-2022 v10.0.0)
 yarn test:ct
+
+# Oracle integration (devnet — requires live Pyth price feeds)
+yarn test:oracle:devnet
 
 # SDK unit tests
 cd sdk/core && yarn test

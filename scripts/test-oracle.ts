@@ -1,10 +1,19 @@
 /**
  * Oracle Integration Test (Devnet)
  *
+ * Run: yarn test:oracle:devnet
+ *
+ * Why devnet (not local validator)?
+ * Pyth price feed accounts contain live data updated by publishers.
+ * Cloned Pyth accounts on a local validator have frozen timestamps and
+ * immediately fail staleness checks. Devnet is the correct environment
+ * for testing live oracle freshness/staleness behavior.
+ *
  * Tests:
- * 1. configure_oracle — sets up oracle config PDA with SOL/USD price feed
- * 2. mint_tokens WITH oracle — should REJECT because SOL/USD is not pegged to $1 (depeg detection works)
- * 3. mint_tokens WITHOUT oracle — should SUCCEED (backwards compatible)
+ * 1. mint WITHOUT oracle accounts — backwards compatible, should succeed
+ * 2. configure_oracle — creates OracleConfig PDA with SOL/USD feed
+ * 3. mint WITH oracle — SOL/USD ≠ $1, should REJECT (depeg detection)
+ * 4. disable oracle, mint again — should succeed (killswitch)
  */
 import * as anchor from "@coral-xyz/anchor";
 import {
