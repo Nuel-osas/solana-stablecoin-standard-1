@@ -115,6 +115,20 @@ function getBlacklistPDA(
   );
 }
 
+function getAllowlistPDA(
+  stablecoinPDA: PublicKey,
+  address: PublicKey
+): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("allowlist"),
+      stablecoinPDA.toBuffer(),
+      address.toBuffer(),
+    ],
+    PROGRAM_ID
+  );
+}
+
 function requireMint(opts: any): PublicKey {
   if (!opts.mint) {
     console.error("Error: --mint <address> is required for this command.");
@@ -159,6 +173,7 @@ initCmd
           enablePermanentDelegate: false,
           enableTransferHook: false,
           defaultAccountFrozen: false,
+          enableAllowlist: false,
           supplyCap: null,
         })
         .accounts({
@@ -215,6 +230,7 @@ initCmd
           enablePermanentDelegate: true,
           enableTransferHook: true,
           defaultAccountFrozen: false,
+          enableAllowlist: false,
           supplyCap: null,
         })
         .accounts({
@@ -235,6 +251,63 @@ initCmd
       console.log(`    --mint ${mintKeypair.publicKey.toBase58()}`);
     } catch (err: any) {
       console.error(`\nError initializing SSS-2 stablecoin: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+initCmd
+  .command("sss-3")
+  .description("Initialize an SSS-3 (private/allowlist) stablecoin")
+  .requiredOption("--name <name>", "Token name")
+  .requiredOption("--symbol <symbol>", "Token symbol")
+  .option("--uri <uri>", "Metadata URI", "")
+  .option("--decimals <decimals>", "Token decimals", "6")
+  .option("--cluster <cluster>", "Solana cluster", "devnet")
+  .option("--keypair <path>", "Path to keypair file", "~/.config/solana/id.json")
+  .action(async (opts) => {
+    try {
+      const connection = getConnection(opts.cluster);
+      const authority = loadKeypair(opts.keypair);
+      const program = getProgram(connection, authority);
+      const mintKeypair = Keypair.generate();
+      const [stablecoinPDA] = getStablecoinPDA(mintKeypair.publicKey);
+
+      console.log(`\nInitializing SSS-3 stablecoin: ${opts.name} (${opts.symbol})`);
+      console.log(`  Cluster: ${opts.cluster}`);
+      console.log(`  Authority: ${authority.publicKey.toBase58()}`);
+      console.log(`  Mint: ${mintKeypair.publicKey.toBase58()}`);
+      console.log(`  Stablecoin PDA: ${stablecoinPDA.toBase58()}`);
+
+      const tx = await program.methods
+        .initialize({
+          name: opts.name,
+          symbol: opts.symbol,
+          uri: opts.uri,
+          decimals: parseInt(opts.decimals),
+          enablePermanentDelegate: true,
+          enableTransferHook: true,
+          defaultAccountFrozen: false,
+          enableAllowlist: true,
+          supplyCap: null,
+        })
+        .accounts({
+          authority: authority.publicKey,
+          mint: mintKeypair.publicKey,
+          stablecoin: stablecoinPDA,
+          transferHookProgram: TRANSFER_HOOK_PROGRAM_ID,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+          rent: SYSVAR_RENT_PUBKEY,
+        })
+        .signers([mintKeypair])
+        .rpc();
+
+      console.log(`\n  Stablecoin initialized successfully!`);
+      console.log(`  Transaction: ${tx}`);
+      console.log(`\n  Save these values for subsequent commands:`);
+      console.log(`    --mint ${mintKeypair.publicKey.toBase58()}`);
+    } catch (err: any) {
+      console.error(`\nError initializing SSS-3 stablecoin: ${err.message}`);
       process.exit(1);
     }
   });
@@ -270,6 +343,7 @@ initCmd
           enablePermanentDelegate: config.enablePermanentDelegate ?? config.enable_permanent_delegate ?? false,
           enableTransferHook,
           defaultAccountFrozen: config.defaultAccountFrozen ?? config.default_account_frozen ?? false,
+          enableAllowlist: config.enableAllowlist ?? config.enable_allowlist ?? false,
           supplyCap: config.supplyCap ? new BN(config.supplyCap) : null,
         })
         .accounts({
@@ -592,6 +666,7 @@ cli
       console.log(`  Permanent Delegate: ${stablecoin.enablePermanentDelegate}`);
       console.log(`  Transfer Hook: ${stablecoin.enableTransferHook}`);
       console.log(`  Default Account Frozen: ${stablecoin.defaultAccountFrozen}`);
+      console.log(`  Allowlist Enabled: ${stablecoin.enableAllowlist}`);
       console.log(`  Total Minted: ${stablecoin.totalMinted.toString()}`);
       console.log(`  Total Burned: ${stablecoin.totalBurned.toString()}`);
       const cap = stablecoin.supplyCap?.toString() ?? "0";
@@ -1010,6 +1085,87 @@ cli
       }
     } catch (err: any) {
       console.error(`\nError fetching audit log: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+// ============ SSS-3 Allowlist Commands ============
+
+const allowlistCmd = cli
+  .command("allowlist")
+  .description("Allowlist management (SSS-3)");
+
+allowlistCmd
+  .command("add")
+  .description("Add address to allowlist")
+  .requiredOption("--address <address>", "Address to allowlist")
+  .requiredOption("--mint <address>", "Stablecoin mint address")
+  .option("--cluster <cluster>", "Solana cluster", "devnet")
+  .option("--keypair <path>", "Authority keypair", "~/.config/solana/id.json")
+  .action(async (opts) => {
+    try {
+      const connection = getConnection(opts.cluster);
+      const authority = loadKeypair(opts.keypair);
+      const program = getProgram(connection, authority);
+      const mint = requireMint(opts);
+      const targetAddress = new PublicKey(opts.address);
+      const [stablecoinPDA] = getStablecoinPDA(mint);
+      const [allowlistEntry] = getAllowlistPDA(stablecoinPDA, targetAddress);
+
+      console.log(`\nAdding ${targetAddress.toBase58()} to allowlist`);
+      console.log(`  Mint: ${mint.toBase58()}`);
+
+      const tx = await program.methods
+        .addToAllowlist(targetAddress)
+        .accounts({
+          authority: authority.publicKey,
+          stablecoin: stablecoinPDA,
+          allowlistEntry,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc();
+
+      console.log(`\n  Address allowlisted successfully!`);
+      console.log(`  Transaction: ${tx}`);
+    } catch (err: any) {
+      console.error(`\nError adding to allowlist: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+allowlistCmd
+  .command("remove")
+  .description("Remove address from allowlist")
+  .requiredOption("--address <address>", "Address to remove")
+  .requiredOption("--mint <address>", "Stablecoin mint address")
+  .option("--cluster <cluster>", "Solana cluster", "devnet")
+  .option("--keypair <path>", "Authority keypair", "~/.config/solana/id.json")
+  .action(async (opts) => {
+    try {
+      const connection = getConnection(opts.cluster);
+      const authority = loadKeypair(opts.keypair);
+      const program = getProgram(connection, authority);
+      const mint = requireMint(opts);
+      const targetAddress = new PublicKey(opts.address);
+      const [stablecoinPDA] = getStablecoinPDA(mint);
+      const [allowlistEntry] = getAllowlistPDA(stablecoinPDA, targetAddress);
+
+      console.log(`\nRemoving ${targetAddress.toBase58()} from allowlist`);
+      console.log(`  Mint: ${mint.toBase58()}`);
+
+      const tx = await program.methods
+        .removeFromAllowlistEntry(targetAddress)
+        .accounts({
+          authority: authority.publicKey,
+          stablecoin: stablecoinPDA,
+          allowlistEntry,
+        })
+        .rpc();
+
+      console.log(`\n  Address removed from allowlist successfully!`);
+      console.log(`  Transaction: ${tx}`);
+    } catch (err: any) {
+      console.error(`\nError removing from allowlist: ${err.message}`);
       process.exit(1);
     }
   });

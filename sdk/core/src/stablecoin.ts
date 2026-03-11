@@ -27,6 +27,7 @@ const PROGRAM_ID = new PublicKey("CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ")
 export enum Presets {
   SSS_1 = "SSS_1",
   SSS_2 = "SSS_2",
+  SSS_3 = "SSS_3",
 }
 
 /**
@@ -118,16 +119,22 @@ export class SolanaStablecoin {
     let enablePermanentDelegate = false;
     let enableTransferHook = false;
     let defaultAccountFrozen = false;
+    let enableAllowlist = false;
 
     if (config.preset === Presets.SSS_2) {
       enablePermanentDelegate = true;
       enableTransferHook = true;
+    } else if (config.preset === Presets.SSS_3) {
+      enablePermanentDelegate = true;
+      enableTransferHook = true;
+      enableAllowlist = true;
     }
 
     if (config.extensions) {
       enablePermanentDelegate = config.extensions.permanentDelegate ?? enablePermanentDelegate;
       enableTransferHook = config.extensions.transferHook ?? enableTransferHook;
       defaultAccountFrozen = config.extensions.defaultAccountFrozen ?? defaultAccountFrozen;
+      enableAllowlist = config.extensions.enableAllowlist ?? enableAllowlist;
     }
 
     const supplyCap = config.supplyCap
@@ -142,6 +149,7 @@ export class SolanaStablecoin {
       enablePermanentDelegate,
       enableTransferHook,
       defaultAccountFrozen,
+      enableAllowlist,
       supplyCap,
     };
 
@@ -243,6 +251,7 @@ export class SolanaStablecoin {
         enablePermanentDelegate: account.enablePermanentDelegate,
         enableTransferHook: account.enableTransferHook,
         defaultAccountFrozen: account.defaultAccountFrozen,
+        enableAllowlist: account.enableAllowlist,
         totalMinted: account.totalMinted,
         totalBurned: account.totalBurned,
         supplyCap: account.supplyCap,

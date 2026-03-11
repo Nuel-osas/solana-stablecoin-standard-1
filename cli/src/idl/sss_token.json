@@ -8,6 +8,150 @@
   },
   "instructions": [
     {
+      "name": "accept_authority",
+      "docs": [
+        "Accept a pending authority nomination (two-step transfer, step 2).",
+        "Caller must be the nominated pending authority."
+      ],
+      "discriminator": [
+        107,
+        86,
+        198,
+        91,
+        33,
+        12,
+        107,
+        160
+      ],
+      "accounts": [
+        {
+          "name": "new_authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "stablecoin",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  98,
+                  108,
+                  101,
+                  99,
+                  111,
+                  105,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stablecoin.mint",
+                "account": "Stablecoin"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "add_to_allowlist",
+      "docs": [
+        "Add an address to the allowlist. Caller must be master authority.",
+        "SSS-3 only — allowlist restricts transfers to pre-approved addresses."
+      ],
+      "discriminator": [
+        149,
+        143,
+        78,
+        134,
+        241,
+        244,
+        7,
+        56
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "stablecoin",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  98,
+                  108,
+                  101,
+                  99,
+                  111,
+                  105,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stablecoin.mint",
+                "account": "Stablecoin"
+              }
+            ]
+          }
+        },
+        {
+          "name": "allowlist_entry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  108,
+                  108,
+                  111,
+                  119,
+                  108,
+                  105,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stablecoin"
+              },
+              {
+                "kind": "arg",
+                "path": "address"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "address",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
       "name": "add_to_blacklist",
       "docs": [
         "Add an address to the blacklist. Caller must have blacklister role.",
@@ -58,6 +202,10 @@
         },
         {
           "name": "role_assignment",
+          "docs": [
+            "Optional role assignment (not needed if caller is master authority)"
+          ],
+          "optional": true,
           "pda": {
             "seeds": [
               {
@@ -398,7 +546,6 @@
       "accounts": [
         {
           "name": "authority",
-          "writable": true,
           "signer": true
         },
         {
@@ -713,6 +860,65 @@
       ]
     },
     {
+      "name": "nominate_authority",
+      "docs": [
+        "Nominate a new master authority (two-step transfer, step 1).",
+        "The new authority must call accept_authority to complete the transfer.",
+        "This prevents accidental loss of authority from typos."
+      ],
+      "discriminator": [
+        148,
+        182,
+        144,
+        91,
+        186,
+        12,
+        118,
+        18
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "stablecoin",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  98,
+                  108,
+                  101,
+                  99,
+                  111,
+                  105,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stablecoin.mint",
+                "account": "Stablecoin"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "new_authority",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
       "name": "pause",
       "docs": [
         "Pause all token operations. Caller must have pauser role."
@@ -801,6 +1007,92 @@
       "args": []
     },
     {
+      "name": "remove_from_allowlist_entry",
+      "docs": [
+        "Remove an address from the allowlist. Caller must be master authority."
+      ],
+      "discriminator": [
+        252,
+        169,
+        33,
+        185,
+        83,
+        212,
+        39,
+        104
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "stablecoin",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  98,
+                  108,
+                  101,
+                  99,
+                  111,
+                  105,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stablecoin.mint",
+                "account": "Stablecoin"
+              }
+            ]
+          }
+        },
+        {
+          "name": "allowlist_entry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  97,
+                  108,
+                  108,
+                  111,
+                  119,
+                  108,
+                  105,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stablecoin"
+              },
+              {
+                "kind": "arg",
+                "path": "address"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "address",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
       "name": "remove_from_blacklist",
       "docs": [
         "Remove an address from the blacklist. Caller must have blacklister role."
@@ -850,6 +1142,10 @@
         },
         {
           "name": "role_assignment",
+          "docs": [
+            "Optional role assignment (not needed if caller is master authority)"
+          ],
+          "optional": true,
           "pda": {
             "seeds": [
               {
@@ -1072,6 +1368,10 @@
         },
         {
           "name": "role_assignment",
+          "docs": [
+            "Optional role assignment (not needed if caller is master authority)"
+          ],
+          "optional": true,
           "pda": {
             "seeds": [
               {
@@ -1108,7 +1408,7 @@
         {
           "name": "blacklist_entry",
           "docs": [
-            "Blacklist entry must exist — proves the target is blacklisted"
+            "Blacklist entry must exist and be active — proves the target is blacklisted"
           ],
           "pda": {
             "seeds": [
@@ -1158,6 +1458,63 @@
       "args": []
     },
     {
+      "name": "set_supply_cap",
+      "docs": [
+        "Set or update the supply cap. Only master authority. Set to 0 to remove cap."
+      ],
+      "discriminator": [
+        26,
+        229,
+        174,
+        213,
+        12,
+        59,
+        220,
+        71
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "stablecoin",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  98,
+                  108,
+                  101,
+                  99,
+                  111,
+                  105,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "stablecoin.mint",
+                "account": "Stablecoin"
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "supply_cap",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "thaw_account",
       "docs": [
         "Thaw a frozen token account. Caller must have master or pauser role."
@@ -1175,7 +1532,6 @@
       "accounts": [
         {
           "name": "authority",
-          "writable": true,
           "signer": true
         },
         {
@@ -1256,7 +1612,8 @@
     {
       "name": "transfer_authority",
       "docs": [
-        "Transfer master authority. Caller must be current master."
+        "Direct transfer of master authority (single-step, use with caution).",
+        "Prefer nominate_authority + accept_authority for safety."
       ],
       "discriminator": [
         48,
@@ -1490,6 +1847,19 @@
   ],
   "accounts": [
     {
+      "name": "AllowlistEntry",
+      "discriminator": [
+        42,
+        59,
+        88,
+        1,
+        124,
+        138,
+        92,
+        236
+      ]
+    },
+    {
       "name": "BlacklistEntry",
       "discriminator": [
         218,
@@ -1567,6 +1937,45 @@
         190,
         40,
         119
+      ]
+    },
+    {
+      "name": "AllowlistAdded",
+      "discriminator": [
+        102,
+        147,
+        146,
+        236,
+        103,
+        153,
+        16,
+        151
+      ]
+    },
+    {
+      "name": "AllowlistRemoved",
+      "discriminator": [
+        47,
+        69,
+        78,
+        173,
+        196,
+        109,
+        163,
+        172
+      ]
+    },
+    {
+      "name": "AuthorityNominated",
+      "discriminator": [
+        83,
+        253,
+        94,
+        222,
+        179,
+        41,
+        95,
+        127
       ]
     },
     {
@@ -1658,6 +2067,19 @@
         33,
         221,
         169
+      ]
+    },
+    {
+      "name": "SupplyCapUpdated",
+      "discriminator": [
+        162,
+        231,
+        73,
+        4,
+        93,
+        188,
+        91,
+        148
       ]
     },
     {
@@ -1793,6 +2215,31 @@
       "code": 6015,
       "name": "SeizeRequiresBlacklist",
       "msg": "Cannot seize from a non-blacklisted account"
+    },
+    {
+      "code": 6016,
+      "name": "SupplyCapExceeded",
+      "msg": "Supply cap would be exceeded"
+    },
+    {
+      "code": 6017,
+      "name": "NoPendingAuthority",
+      "msg": "No pending authority nomination"
+    },
+    {
+      "code": 6018,
+      "name": "NotPendingAuthority",
+      "msg": "Caller is not the nominated pending authority"
+    },
+    {
+      "code": 6019,
+      "name": "AllowlistNotEnabled",
+      "msg": "Allowlist is not enabled for this stablecoin"
+    },
+    {
+      "code": 6020,
+      "name": "NotAllowlisted",
+      "msg": "Address is not on the allowlist"
     }
   ],
   "types": [
@@ -1812,6 +2259,10 @@
           {
             "name": "by",
             "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
           }
         ]
       }
@@ -1832,6 +2283,114 @@
           {
             "name": "by",
             "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AllowlistAdded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "address",
+            "type": "pubkey"
+          },
+          {
+            "name": "by",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AllowlistEntry",
+      "docs": [
+        "Allowlist entry for SSS-3 privacy-preserving compliance.",
+        "Seeds: [\"allowlist\", stablecoin_pubkey, address_pubkey]"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "stablecoin",
+            "type": "pubkey"
+          },
+          {
+            "name": "address",
+            "type": "pubkey"
+          },
+          {
+            "name": "added_at",
+            "type": "i64"
+          },
+          {
+            "name": "added_by",
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AllowlistRemoved",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "address",
+            "type": "pubkey"
+          },
+          {
+            "name": "by",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AuthorityNominated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "current_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "pending_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
           }
         ]
       }
@@ -1852,6 +2411,10 @@
           {
             "name": "new_authority",
             "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
           }
         ]
       }
@@ -1876,6 +2439,10 @@
           {
             "name": "by",
             "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
           }
         ]
       }
@@ -1884,7 +2451,8 @@
       "name": "BlacklistEntry",
       "docs": [
         "Blacklist entry for SSS-2 compliance.",
-        "Seeds: [\"blacklist\", stablecoin_pubkey, address_pubkey]"
+        "Seeds: [\"blacklist\", stablecoin_pubkey, address_pubkey]",
+        "Entries are never deleted — they are deactivated to preserve the audit trail."
       ],
       "type": {
         "kind": "struct",
@@ -1910,6 +2478,13 @@
             "type": "pubkey"
           },
           {
+            "name": "active",
+            "docs": [
+              "Whether this entry is currently active"
+            ],
+            "type": "bool"
+          },
+          {
             "name": "bump",
             "type": "u8"
           }
@@ -1932,6 +2507,10 @@
           {
             "name": "by",
             "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
           }
         ]
       }
@@ -1986,6 +2565,10 @@
           {
             "name": "by",
             "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
           }
         ]
       }
@@ -2037,6 +2620,10 @@
           {
             "name": "by",
             "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
           }
         ]
       }
@@ -2112,6 +2699,10 @@
           {
             "name": "by",
             "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
           }
         ]
       }
@@ -2196,6 +2787,13 @@
             "type": "bool"
           },
           {
+            "name": "enable_allowlist",
+            "docs": [
+              "SSS-3: allowlist enabled (restricts transfers to pre-approved addresses)"
+            ],
+            "type": "bool"
+          },
+          {
             "name": "total_minted",
             "docs": [
               "Total minted supply tracked on-chain"
@@ -2208,6 +2806,20 @@
               "Total burned tracked on-chain"
             ],
             "type": "u64"
+          },
+          {
+            "name": "supply_cap",
+            "docs": [
+              "Maximum supply cap (0 = unlimited)"
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "pending_authority",
+            "docs": [
+              "Pending authority for two-step transfer (Pubkey::default() = none)"
+            ],
+            "type": "pubkey"
           },
           {
             "name": "bump",
@@ -2224,7 +2836,7 @@
             "type": {
               "array": [
                 "u8",
-                64
+                23
               ]
             }
           }
@@ -2275,6 +2887,22 @@
               "SSS-2: new accounts start frozen until explicitly thawed"
             ],
             "type": "bool"
+          },
+          {
+            "name": "enable_allowlist",
+            "docs": [
+              "SSS-3: enable allowlist (restricts transfers to pre-approved addresses)"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "supply_cap",
+            "docs": [
+              "Optional supply cap (None or 0 = unlimited)"
+            ],
+            "type": {
+              "option": "u64"
+            }
           }
         ]
       }
@@ -2311,6 +2939,38 @@
           {
             "name": "transfer_hook_enabled",
             "type": "bool"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SupplyCapUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "old_cap",
+            "type": "u64"
+          },
+          {
+            "name": "new_cap",
+            "type": "u64"
+          },
+          {
+            "name": "by",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
           }
         ]
       }
@@ -2331,6 +2991,10 @@
           {
             "name": "burner",
             "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
           }
         ]
       }
@@ -2355,6 +3019,10 @@
           {
             "name": "minter",
             "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
           }
         ]
       }
@@ -2383,6 +3051,10 @@
           {
             "name": "by",
             "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
           }
         ]
       }
@@ -2399,6 +3071,10 @@
           {
             "name": "by",
             "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
           }
         ]
       }

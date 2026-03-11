@@ -23,7 +23,7 @@ export function roleToAnchorEnum(role: RoleType): object {
 }
 
 export interface StablecoinConfig {
-  preset?: "SSS_1" | "SSS_2";
+  preset?: "SSS_1" | "SSS_2" | "SSS_3";
   name: string;
   symbol: string;
   uri?: string;
@@ -33,6 +33,7 @@ export interface StablecoinConfig {
     permanentDelegate?: boolean;
     transferHook?: boolean;
     defaultAccountFrozen?: boolean;
+    enableAllowlist?: boolean;
   };
   supplyCap?: number | anchor.BN;
 }
@@ -48,6 +49,7 @@ export interface StablecoinState {
   enablePermanentDelegate: boolean;
   enableTransferHook: boolean;
   defaultAccountFrozen: boolean;
+  enableAllowlist: boolean;
   totalMinted: anchor.BN;
   totalBurned: anchor.BN;
   supplyCap: anchor.BN;
