@@ -7,7 +7,7 @@ on:
     branches: [main, master]
 
 env:
-  SOLANA_VERSION: "2.3.0"
+  SOLANA_VERSION: "3.1.10"
   ANCHOR_VERSION: "0.31.1"
   NODE_VERSION: "20"
 
@@ -52,9 +52,7 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Build programs
-        run: |
-          cargo-build-sbf --manifest-path programs/sss-token/Cargo.toml --tools-version v1.52
-          cargo-build-sbf --manifest-path programs/sss-transfer-hook/Cargo.toml --tools-version v1.52
+        run: anchor build
 
       - name: Upload built programs
         uses: actions/upload-artifact@v4
@@ -105,11 +103,8 @@ jobs:
       - name: Generate keypair
         run: solana-keygen new --no-bip39-passphrase
 
-      - name: Build and test
-        run: |
-          cargo-build-sbf --manifest-path programs/sss-token/Cargo.toml --tools-version v1.52
-          cargo-build-sbf --manifest-path programs/sss-transfer-hook/Cargo.toml --tools-version v1.52
-          anchor test --skip-build
+      - name: Run Anchor tests
+        run: anchor test
 
   # Job 3: SDK unit tests
   sdk-test:
