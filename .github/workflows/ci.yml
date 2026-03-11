@@ -38,6 +38,9 @@ jobs:
           sh -c "$(curl -sSfL https://release.anza.xyz/v${SOLANA_VERSION}/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
+      - name: Install platform-tools v1.52
+        run: cargo-build-sbf --tools-version v1.52 --help || true
+
       - name: Install Anchor CLI
         run: |
           cargo install --git https://github.com/coral-xyz/anchor --tag v${ANCHOR_VERSION} anchor-cli --locked --force
@@ -52,7 +55,7 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Build programs
-        run: anchor build -- --tools-version v1.52
+        run: anchor build
 
       - name: Upload built programs
         uses: actions/upload-artifact@v4
@@ -87,6 +90,9 @@ jobs:
           sh -c "$(curl -sSfL https://release.anza.xyz/v${SOLANA_VERSION}/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
 
+      - name: Install platform-tools v1.52
+        run: cargo-build-sbf --tools-version v1.52 --help || true
+
       - name: Install Anchor CLI
         run: |
           cargo install --git https://github.com/coral-xyz/anchor --tag v${ANCHOR_VERSION} anchor-cli --locked --force
@@ -104,7 +110,7 @@ jobs:
         run: solana-keygen new --no-bip39-passphrase
 
       - name: Run Anchor tests
-        run: anchor test -- --tools-version v1.52
+        run: anchor test
 
   # Job 3: SDK unit tests
   sdk-test:
