@@ -23,6 +23,7 @@ cli
   .requiredOption("--mint <address>", "Mint address of the stablecoin")
   .option("--cluster <cluster>", "Solana cluster", "devnet")
   .option("--keypair <path>", "Path to keypair file")
+  .option("--feed <name>", "Oracle price feed (usdc, usdt, sol)", "usdc")
   .action(async (opts) => {
     const mint = new PublicKey(opts.mint);
 
@@ -44,7 +45,7 @@ cli
       PROGRAM_ID
     );
 
-    createDashboard(connection, program, mint, stablecoinPDA, PROGRAM_ID);
+    createDashboard(connection, program, mint, stablecoinPDA, PROGRAM_ID, opts.feed);
   });
 
 cli.parse(process.argv);

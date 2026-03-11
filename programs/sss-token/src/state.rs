@@ -138,6 +138,34 @@ impl AllowlistEntry {
     pub const LEN: usize = 8 + 32 + 32 + 8 + 32 + 1;
 }
 
+/// Oracle configuration for on-chain price validation.
+/// Seeds: ["oracle_config", stablecoin_pubkey]
+#[account]
+pub struct OracleConfig {
+    /// The stablecoin this oracle config belongs to
+    pub stablecoin: Pubkey,
+    /// Pyth price feed account address
+    pub price_feed: Pubkey,
+    /// Maximum allowed deviation from $1.00 in basis points (e.g., 100 = 1%)
+    pub max_deviation_bps: u16,
+    /// Maximum staleness in seconds (reject prices older than this)
+    pub max_staleness_secs: u64,
+    /// Whether oracle enforcement is active
+    pub enabled: bool,
+    /// PDA bump
+    pub bump: u8,
+}
+
+impl OracleConfig {
+    pub const LEN: usize = 8 +  // discriminator
+        32 +                      // stablecoin
+        32 +                      // price_feed
+        2 +                       // max_deviation_bps
+        8 +                       // max_staleness_secs
+        1 +                       // enabled
+        1;                        // bump
+}
+
 /// Roles in the stablecoin system.
 /// No single key controls everything — separation of concerns.
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq)]

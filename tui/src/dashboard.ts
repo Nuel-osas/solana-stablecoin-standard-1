@@ -5,6 +5,7 @@ import * as anchor from "@coral-xyz/anchor";
 import {
   fetchStablecoinState,
   fetchSupplyInfo,
+  fetchOraclePrice,
   detectPreset,
   subscribeToEvents,
   LogEvent,
@@ -30,7 +31,8 @@ export function createDashboard(
   program: anchor.Program,
   mint: PublicKey,
   stablecoinPDA: PublicKey,
-  programId: PublicKey
+  programId: PublicKey,
+  oracleFeed: string = "usdc"
 ): void {
   // ── Screen setup ─────────────────────────────────────────────────────
   const screen = blessed.screen({
@@ -85,13 +87,13 @@ export function createDashboard(
   } as any);
 
   // ── Middle-left: Extensions ──────────────────────────────────────────
-  const extensionsTable = grid.set(5, 0, 3, 6, contrib.table, {
+  const extensionsTable = grid.set(5, 0, 3, 4, contrib.table, {
     keys: false,
     fg: "white",
     label: " {bold}{yellow-fg}Extensions{/yellow-fg}{/bold} ",
     tags: true,
-    columnSpacing: 3,
-    columnWidth: [26, 16],
+    columnSpacing: 2,
+    columnWidth: [22, 10],
     style: {
       border: { fg: COLORS.warning },
       header: { fg: COLORS.warning, bold: true },
@@ -99,14 +101,29 @@ export function createDashboard(
     },
   } as any);
 
+  // ── Middle-center: Oracle Price ────────────────────────────────────
+  const oracleTable = grid.set(5, 4, 3, 4, contrib.table, {
+    keys: false,
+    fg: "white",
+    label: " {bold}{blue-fg}Pyth Oracle{/blue-fg}{/bold} ",
+    tags: true,
+    columnSpacing: 2,
+    columnWidth: [16, 20],
+    style: {
+      border: { fg: "blue" },
+      header: { fg: "blue", bold: true },
+      cell: { fg: "white" },
+    },
+  } as any);
+
   // ── Middle-right: Roles ──────────────────────────────────────────────
-  const rolesTable = grid.set(5, 6, 3, 6, contrib.table, {
+  const rolesTable = grid.set(5, 8, 3, 4, contrib.table, {
     keys: false,
     fg: "white",
     label: " {bold}{magenta-fg}Roles & Authority{/magenta-fg}{/bold} ",
     tags: true,
     columnSpacing: 3,
-    columnWidth: [22, 46],
+    columnWidth: [18, 20],
     style: {
       border: { fg: "magenta" },
       header: { fg: "magenta", bold: true },
@@ -225,6 +242,30 @@ export function createDashboard(
     (rolesTable as any).setData({
       headers: ["Role", "Address"],
       data: rolesData,
+    });
+
+    // Oracle price
+    fetchOraclePrice(oracleFeed).then((oracle) => {
+      if (oracle) {
+        const pegColor = oracle.isDepegged ? "DEPEGGED" : "ON PEG";
+        (oracleTable as any).setData({
+          headers: ["Metric", "Value"],
+          data: [
+            ["Feed", oracle.feed + "/USD"],
+            ["Price", "$" + oracle.price.toFixed(6)],
+            ["Confidence", "±$" + oracle.confidence.toFixed(6)],
+            ["Deviation", oracle.deviationPct],
+            ["Peg Status", pegColor],
+            ["Updated", oracle.publishTime],
+          ],
+        });
+      } else {
+        (oracleTable as any).setData({
+          headers: ["Metric", "Value"],
+          data: [["Status", "Failed to fetch"]],
+        });
+      }
+      screen.render();
     });
 
     screen.render();

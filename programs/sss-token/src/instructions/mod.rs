@@ -6,6 +6,7 @@ pub mod pause;
 pub mod roles;
 pub mod compliance;
 pub mod allowlist;
+pub mod oracle;
 
 pub use initialize::*;
 pub use mint::*;
@@ -15,3 +16,4 @@ pub use pause::*;
 pub use roles::*;
 pub use compliance::*;
 pub use allowlist::*;
+pub use oracle::*;

@@ -44,4 +44,10 @@ pub enum SSSError {
     AllowlistNotEnabled,
     #[msg("Address is not on the allowlist")]
     NotAllowlisted,
+    #[msg("Oracle price is stale")]
+    OraclePriceStale,
+    #[msg("Stablecoin price has depegged beyond the allowed threshold")]
+    OraclePriceDepegged,
+    #[msg("Invalid oracle price feed")]
+    InvalidOracleFeed,
 }

@@ -145,4 +145,20 @@ pub mod sss_token {
     pub fn remove_from_allowlist_entry(ctx: Context<AllowlistRemove>, address: Pubkey) -> Result<()> {
         instructions::allowlist::remove_from_allowlist_handler(ctx, address)
     }
+
+    // ============ Oracle Price Enforcement ============
+
+    /// Configure oracle price enforcement for mint/burn operations.
+    /// When enabled, minting and burning will be rejected if the stablecoin
+    /// has depegged beyond the configured threshold.
+    /// Only master authority can call this.
+    pub fn configure_oracle(
+        ctx: Context<ConfigureOracle>,
+        price_feed: Pubkey,
+        max_deviation_bps: u16,
+        max_staleness_secs: u64,
+        enabled: bool,
+    ) -> Result<()> {
+        instructions::oracle::configure_oracle_handler(ctx, price_feed, max_deviation_bps, max_staleness_secs, enabled)
+    }
 }

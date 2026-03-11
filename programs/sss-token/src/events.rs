@@ -144,3 +144,14 @@ pub struct TokensSeized {
     pub by: Pubkey,
     pub timestamp: i64,
 }
+
+#[event]
+pub struct OracleConfigured {
+    pub mint: Pubkey,
+    pub price_feed: Pubkey,
+    pub max_deviation_bps: u16,
+    pub max_staleness_secs: u64,
+    pub enabled: bool,
+    pub by: Pubkey,
+    pub timestamp: i64,
+}
