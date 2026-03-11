@@ -192,6 +192,33 @@ function requireMint(opts: any): PublicKey {
   return new PublicKey(opts.mint);
 }
 
+/** Convert a human-readable amount (e.g. "1.5") to base units given decimals. */
+async function parseAmount(amountStr: string, mint: PublicKey, connection: Connection): Promise<BN> {
+  const mintInfo = await connection.getParsedAccountInfo(mint);
+  const decimals = (mintInfo.value?.data as any)?.parsed?.info?.decimals ?? 6;
+  const parts = amountStr.split(".");
+  const whole = parts[0];
+  const frac = (parts[1] || "").padEnd(decimals, "0").slice(0, decimals);
+  return new BN(whole + frac);
+}
+
+/** Map role string to Anchor enum object. */
+function roleToEnum(role: string): any {
+  const map: Record<string, any> = {
+    minter: { minter: {} },
+    burner: { burner: {} },
+    blacklister: { blacklister: {} },
+    pauser: { pauser: {} },
+    seizer: { seizer: {} },
+  };
+  const r = map[role.toLowerCase()];
+  if (!r) {
+    console.error(`Error: Unknown role "${role}". Valid roles: minter, burner, blacklister, pauser, seizer`);
+    process.exit(1);
+  }
+  return r;
+}
+
 // ============ Init Commands ============
 
 const initCmd = cli.command("init").description("Initialize a new stablecoin");
@@ -431,7 +458,7 @@ cli
   .command("mint")
   .description("Mint tokens to a recipient")
   .requiredOption("--to <address>", "Recipient address")
-  .requiredOption("--amount <amount>", "Amount to mint (in base units)")
+  .requiredOption("--amount <amount>", "Amount to mint (e.g. 1000 or 1.5)")
   .requiredOption("--mint <address>", "Stablecoin mint address")
   .option("--cluster <cluster>", "Solana cluster", "devnet")
   .option("--keypair <path>", "Minter keypair", "~/.config/solana/id.json")
@@ -442,6 +469,7 @@ cli
       const program = getProgram(connection, minter);
       const mint = requireMint(opts);
       const recipient = new PublicKey(opts.to);
+      const amount = await parseAmount(opts.amount, mint, connection);
       const [stablecoinPDA] = getStablecoinPDA(mint);
       const [roleAssignment] = getRolePDA(stablecoinPDA, "minter", minter.publicKey);
       const [minterInfo] = getMinterInfoPDA(stablecoinPDA, minter.publicKey);
@@ -457,9 +485,10 @@ cli
       console.log(`\nMinting ${opts.amount} tokens to ${recipient.toBase58()}`);
       console.log(`  Mint: ${mint.toBase58()}`);
       console.log(`  Recipient ATA: ${recipientATA.toBase58()}`);
+      console.log(`  Amount (base units): ${amount.toString()}`);
 
       const tx = await program.methods
-        .mintTokens(new BN(opts.amount))
+        .mintTokens(amount)
         .accounts({
           minter: minter.publicKey,
           stablecoin: stablecoinPDA,
@@ -467,8 +496,10 @@ cli
           roleAssignment,
           minterInfo,
           recipientTokenAccount: recipientATA,
+          oracleConfig: null,
+          priceFeed: null,
           tokenProgram: TOKEN_2022_PROGRAM_ID,
-        })
+        } as any)
         .rpc();
 
       console.log(`\n  Tokens minted successfully!`);
@@ -484,7 +515,7 @@ cli
 cli
   .command("burn")
   .description("Burn tokens")
-  .requiredOption("--amount <amount>", "Amount to burn (in base units)")
+  .requiredOption("--amount <amount>", "Amount to burn (e.g. 500 or 1.5)")
   .requiredOption("--mint <address>", "Stablecoin mint address")
   .option("--from <address>", "Token account to burn from (defaults to burner's ATA)")
   .option("--cluster <cluster>", "Solana cluster", "devnet")
@@ -495,6 +526,7 @@ cli
       const burner = loadKeypair(opts.keypair);
       const program = getProgram(connection, burner);
       const mint = requireMint(opts);
+      const amount = await parseAmount(opts.amount, mint, connection);
       const [stablecoinPDA] = getStablecoinPDA(mint);
       const [roleAssignment] = getRolePDA(stablecoinPDA, "burner", burner.publicKey);
 
@@ -511,17 +543,20 @@ cli
       console.log(`\nBurning ${opts.amount} tokens`);
       console.log(`  Mint: ${mint.toBase58()}`);
       console.log(`  Burn from: ${burnFrom.toBase58()}`);
+      console.log(`  Amount (base units): ${amount.toString()}`);
 
       const tx = await program.methods
-        .burnTokens(new BN(opts.amount))
+        .burnTokens(amount)
         .accounts({
           burner: burner.publicKey,
           stablecoin: stablecoinPDA,
           mint,
           roleAssignment,
           burnFrom,
+          oracleConfig: null,
+          priceFeed: null,
           tokenProgram: TOKEN_2022_PROGRAM_ID,
-        })
+        } as any)
         .rpc();
 
       console.log(`\n  Tokens burned successfully!`);
@@ -1089,6 +1124,190 @@ mintersCmd
     }
   });
 
+// ============ Role Management (Generic) ============
+
+const rolesCmd = cli.command("roles").description("Role management (minter, burner, blacklister, pauser, seizer)");
+
+rolesCmd
+  .command("assign")
+  .description("Assign a role to an address")
+  .requiredOption("--role <role>", "Role to assign (minter, burner, blacklister, pauser, seizer)")
+  .requiredOption("--address <address>", "Address to assign the role to")
+  .requiredOption("--mint <address>", "Stablecoin mint address")
+  .option("--cluster <cluster>", "Solana cluster", "devnet")
+  .option("--keypair <path>", "Authority keypair", "~/.config/solana/id.json")
+  .action(async (opts) => {
+    try {
+      const connection = getConnection(opts.cluster);
+      const authority = loadKeypair(opts.keypair);
+      const program = getProgram(connection, authority);
+      const mint = requireMint(opts);
+      const assignee = new PublicKey(opts.address);
+      const roleName = opts.role.toLowerCase();
+      const roleEnum = roleToEnum(roleName);
+      const [stablecoinPDA] = getStablecoinPDA(mint);
+      const [roleAssignment] = getRolePDA(stablecoinPDA, roleName, assignee);
+
+      // minterInfo is only needed for minter role
+      const minterInfo = roleName === "minter"
+        ? getMinterInfoPDA(stablecoinPDA, assignee)[0]
+        : null;
+
+      console.log(`\nAssigning ${c.bold}${roleName}${c.reset} role to ${assignee.toBase58()}`);
+      console.log(`  Mint: ${mint.toBase58()}`);
+
+      const tx = await program.methods
+        .assignRole(roleEnum, assignee)
+        .accounts({
+          authority: authority.publicKey,
+          stablecoin: stablecoinPDA,
+          roleAssignment,
+          minterInfo,
+          systemProgram: SystemProgram.programId,
+        } as any)
+        .rpc();
+
+      console.log(`\n  ${c.green}${c.bold}Role assigned successfully!${c.reset}`);
+      console.log(`  Transaction: ${tx}`);
+    } catch (err: any) {
+      console.error(`\nError assigning role: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+rolesCmd
+  .command("revoke")
+  .description("Revoke a role from an address")
+  .requiredOption("--role <role>", "Role to revoke (minter, burner, blacklister, pauser, seizer)")
+  .requiredOption("--address <address>", "Address to revoke the role from")
+  .requiredOption("--mint <address>", "Stablecoin mint address")
+  .option("--cluster <cluster>", "Solana cluster", "devnet")
+  .option("--keypair <path>", "Authority keypair", "~/.config/solana/id.json")
+  .action(async (opts) => {
+    try {
+      const connection = getConnection(opts.cluster);
+      const authority = loadKeypair(opts.keypair);
+      const program = getProgram(connection, authority);
+      const mint = requireMint(opts);
+      const assignee = new PublicKey(opts.address);
+      const roleName = opts.role.toLowerCase();
+      const roleEnum = roleToEnum(roleName);
+      const [stablecoinPDA] = getStablecoinPDA(mint);
+      const [roleAssignment] = getRolePDA(stablecoinPDA, roleName, assignee);
+
+      console.log(`\nRevoking ${c.bold}${roleName}${c.reset} role from ${assignee.toBase58()}`);
+      console.log(`  Mint: ${mint.toBase58()}`);
+
+      const tx = await program.methods
+        .revokeRole(roleEnum, assignee)
+        .accounts({
+          authority: authority.publicKey,
+          stablecoin: stablecoinPDA,
+          roleAssignment,
+        })
+        .rpc();
+
+      console.log(`\n  ${c.green}${c.bold}Role revoked successfully!${c.reset}`);
+      console.log(`  Transaction: ${tx}`);
+    } catch (err: any) {
+      console.error(`\nError revoking role: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+rolesCmd
+  .command("list")
+  .description("List all role assignments")
+  .requiredOption("--mint <address>", "Stablecoin mint address")
+  .option("--role <role>", "Filter by role (minter, burner, blacklister, pauser, seizer)")
+  .option("--cluster <cluster>", "Solana cluster", "devnet")
+  .option("--keypair <path>", "Path to keypair file", "~/.config/solana/id.json")
+  .action(async (opts) => {
+    try {
+      const connection = getConnection(opts.cluster);
+      const authority = loadKeypair(opts.keypair);
+      const program = getProgram(connection, authority);
+      const mint = requireMint(opts);
+      const [stablecoinPDA] = getStablecoinPDA(mint);
+
+      console.log(`\nListing roles for mint: ${mint.toBase58()}`);
+
+      const accounts = await (program.account as any).roleAssignment.all([
+        { memcmp: { offset: 8, bytes: stablecoinPDA.toBase58() } },
+      ]);
+
+      const roleNames = ["minter", "burner", "blacklister", "pauser", "seizer"];
+      let filtered = accounts.filter((acc: any) => acc.account.active);
+
+      if (opts.role) {
+        const filterRole = opts.role.toLowerCase();
+        filtered = filtered.filter((acc: any) => {
+          const role = acc.account.role;
+          return role && filterRole in role;
+        });
+      }
+
+      if (filtered.length === 0) {
+        console.log("\n  No active role assignments found.");
+      } else {
+        console.log(`\n  Found ${filtered.length} active role(s):\n`);
+        for (const a of filtered) {
+          const assignee = (a.account as any).assignee.toBase58();
+          const role = Object.keys(a.account.role)[0] || "unknown";
+          console.log(`    ${c.cyan}${role.padEnd(13)}${c.reset} ${assignee}`);
+        }
+      }
+    } catch (err: any) {
+      console.error(`\nError listing roles: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+rolesCmd
+  .command("check")
+  .description("Check what roles an address has")
+  .requiredOption("--address <address>", "Address to check")
+  .requiredOption("--mint <address>", "Stablecoin mint address")
+  .option("--cluster <cluster>", "Solana cluster", "devnet")
+  .option("--keypair <path>", "Path to keypair file", "~/.config/solana/id.json")
+  .action(async (opts) => {
+    try {
+      const connection = getConnection(opts.cluster);
+      const authority = loadKeypair(opts.keypair);
+      const program = getProgram(connection, authority);
+      const mint = requireMint(opts);
+      const target = new PublicKey(opts.address);
+      const [stablecoinPDA] = getStablecoinPDA(mint);
+
+      console.log(`\nChecking roles for ${target.toBase58()}`);
+      console.log(`  Mint: ${mint.toBase58()}\n`);
+
+      const roleNames = ["minter", "burner", "blacklister", "pauser", "seizer"];
+      for (const roleName of roleNames) {
+        const [rolePDA] = getRolePDA(stablecoinPDA, roleName, target);
+        try {
+          const roleAccount = await (program.account as any).roleAssignment.fetch(rolePDA);
+          if (roleAccount.active) {
+            console.log(`    ${c.green}${c.bold}YES${c.reset}  ${roleName}`);
+          } else {
+            console.log(`    ${c.dim}NO   ${roleName}${c.reset}`);
+          }
+        } catch {
+          console.log(`    ${c.dim}NO   ${roleName}${c.reset}`);
+        }
+      }
+
+      // Check if authority
+      const stablecoin = await (program.account as any).stablecoin.fetch(stablecoinPDA);
+      if (stablecoin.authority.toBase58() === target.toBase58()) {
+        console.log(`\n    ${c.yellow}${c.bold}★ Master Authority${c.reset}`);
+      }
+    } catch (err: any) {
+      console.error(`\nError checking roles: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
 // ============ Holders ============
 
 cli
@@ -1239,6 +1458,43 @@ cli
       console.log(`  Transaction: ${tx}`);
     } catch (err: any) {
       console.error(`\nError accepting authority: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+cli
+  .command("transfer-authority")
+  .description("Direct single-step authority transfer (use with caution)")
+  .requiredOption("--new-authority <address>", "New authority address")
+  .requiredOption("--mint <address>", "Stablecoin mint address")
+  .option("--cluster <cluster>", "Solana cluster", "devnet")
+  .option("--keypair <path>", "Current authority keypair", "~/.config/solana/id.json")
+  .action(async (opts) => {
+    try {
+      const connection = getConnection(opts.cluster);
+      const authority = loadKeypair(opts.keypair);
+      const program = getProgram(connection, authority);
+      const mint = requireMint(opts);
+      const newAuthority = new PublicKey(opts.newAuthority);
+      const [stablecoinPDA] = getStablecoinPDA(mint);
+
+      console.log(`\n${c.yellow}${c.bold}WARNING: This is a single-step, irreversible authority transfer.${c.reset}`);
+      console.log(`  Current authority: ${authority.publicKey.toBase58()}`);
+      console.log(`  New authority:     ${newAuthority.toBase58()}`);
+      console.log(`  Mint: ${mint.toBase58()}`);
+
+      const tx = await program.methods
+        .transferAuthority(newAuthority)
+        .accounts({
+          authority: authority.publicKey,
+          stablecoin: stablecoinPDA,
+        })
+        .rpc();
+
+      console.log(`\n  ${c.green}${c.bold}Authority transferred successfully!${c.reset}`);
+      console.log(`  Transaction: ${tx}`);
+    } catch (err: any) {
+      console.error(`\nError transferring authority: ${err.message}`);
       process.exit(1);
     }
   });

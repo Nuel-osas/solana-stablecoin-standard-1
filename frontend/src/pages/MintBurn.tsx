@@ -89,6 +89,8 @@ export default function MintBurn({ mintAddress }: Props) {
           roleAssignment,
           minterInfo,
           recipientTokenAccount: recipientATA,
+          oracleConfig: null,
+          priceFeed: null,
           tokenProgram: TOKEN_2022_PROGRAM_ID,
         })
         .transaction();
@@ -140,6 +142,8 @@ export default function MintBurn({ mintAddress }: Props) {
           mint,
           roleAssignment,
           burnFrom,
+          oracleConfig: null,
+          priceFeed: null,
           tokenProgram: TOKEN_2022_PROGRAM_ID,
         })
         .transaction();
