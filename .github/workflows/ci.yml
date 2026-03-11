@@ -53,6 +53,7 @@ jobs:
 
       - name: Build programs
         run: |
+          rm -f Cargo.lock
           cargo-build-sbf --manifest-path programs/sss-token/Cargo.toml --tools-version v1.52
           cargo-build-sbf --manifest-path programs/sss-transfer-hook/Cargo.toml --tools-version v1.52
 
@@ -107,6 +108,7 @@ jobs:
 
       - name: Build and test
         run: |
+          rm -f Cargo.lock
           cargo-build-sbf --manifest-path programs/sss-token/Cargo.toml --tools-version v1.52
           cargo-build-sbf --manifest-path programs/sss-transfer-hook/Cargo.toml --tools-version v1.52
           anchor test --skip-build
