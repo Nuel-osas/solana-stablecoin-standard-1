@@ -23,27 +23,66 @@ security_txt! {
     auditors: "None"
 }
 
-/// The sss-token program ID — blacklist PDAs are owned by this program.
+/// The sss-token program ID — blacklist/allowlist PDAs are owned by this program.
 const SSS_TOKEN_PROGRAM_ID: Pubkey =
     pubkey!("CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ");
 
 /// Seeds used by the main sss-token program
 const STABLECOIN_SEED: &[u8] = b"stablecoin";
 const BLACKLIST_SEED: &[u8] = b"blacklist";
+const ALLOWLIST_SEED: &[u8] = b"allowlist";
+
+/// Read the `enable_allowlist` flag from raw Stablecoin account data.
+/// Layout: disc(8) + authority(32) + mint(32) + 3 Borsh strings + 5 bools + enable_allowlist(1)
+fn read_enable_allowlist(data: &[u8]) -> bool {
+    let mut offset = 8 + 32 + 32; // discriminator + authority + mint
+    // Skip 3 Borsh strings (4-byte length prefix + content)
+    for _ in 0..3 {
+        if offset + 4 > data.len() {
+            return false;
+        }
+        let len = u32::from_le_bytes(
+            data[offset..offset + 4].try_into().unwrap_or([0; 4]),
+        ) as usize;
+        offset += 4 + len;
+    }
+    // Skip: decimals(1) + paused(1) + enable_permanent_delegate(1) +
+    //        enable_transfer_hook(1) + default_account_frozen(1)
+    offset += 5;
+    if offset >= data.len() {
+        return false;
+    }
+    data[offset] != 0
+}
+
+/// Read the `active` flag from a BlacklistEntry account.
+/// Layout: disc(8) + stablecoin(32) + address(32) + reason(4+var) + blacklisted_at(8) +
+///         blacklisted_by(32) + active(1) + bump(1)
+fn read_blacklist_active(data: &[u8]) -> bool {
+    let mut offset = 8 + 32 + 32; // discriminator + stablecoin + address
+    // Skip Borsh string (reason)
+    if offset + 4 > data.len() {
+        return false;
+    }
+    let len = u32::from_le_bytes(
+        data[offset..offset + 4].try_into().unwrap_or([0; 4]),
+    ) as usize;
+    offset += 4 + len;
+    // Skip blacklisted_at(8) + blacklisted_by(32)
+    offset += 8 + 32;
+    if offset >= data.len() {
+        return false;
+    }
+    data[offset] != 0
+}
 
 #[program]
 pub mod sss_transfer_hook {
     use super::*;
 
     /// Called by Token-2022 on every transfer.
-    /// Checks that neither sender nor recipient is blacklisted.
+    /// Enforces blacklist (SSS-2) and allowlist (SSS-3) checks.
     pub fn execute(ctx: Context<Execute>, amount: u64) -> Result<()> {
-        // The transfer hook receives the source, mint, destination, and authority.
-        // We need to check blacklist PDAs for both source owner and destination owner.
-        //
-        // Note: AccountInfo.owner is the *program* that owns the account (Token-2022),
-        // not the wallet. We must unpack the token account data to get the real owner.
-
         let source_data = ctx.accounts.source_account.try_borrow_data()?;
         let source_account = StateWithExtensions::<TokenAccount>::unpack(&source_data)
             .map_err(|_| ProgramError::InvalidAccountData)?;
@@ -55,26 +94,23 @@ pub mod sss_transfer_hook {
         let dest_owner = dest_account.base.owner;
         let stablecoin_key = ctx.accounts.stablecoin.key();
 
-        // Check source blacklist
+        // ── Blacklist checks (SSS-2) ──
+
         let (source_blacklist_pda, _) = Pubkey::find_program_address(
             &[BLACKLIST_SEED, stablecoin_key.as_ref(), source_owner.as_ref()],
             &SSS_TOKEN_PROGRAM_ID,
         );
 
-        // If the source_blacklist PDA exists on-chain (data_len > 0) and the key
-        // matches the derived address, the source wallet is blacklisted.
-        // Token-2022 always passes the derived PDA via ExtraAccountMetaList, but
-        // the account will only have data if a BlacklistEntry was created.
         if let Some(source_bl) = &ctx.accounts.source_blacklist {
             if source_bl.key() == source_blacklist_pda
                 && source_bl.data_len() > 0
                 && source_bl.owner == &SSS_TOKEN_PROGRAM_ID
+                && read_blacklist_active(&source_bl.try_borrow_data()?)
             {
                 return Err(error!(TransferHookError::SenderBlacklisted));
             }
         }
 
-        // Check destination blacklist
         let (dest_blacklist_pda, _) = Pubkey::find_program_address(
             &[BLACKLIST_SEED, stablecoin_key.as_ref(), dest_owner.as_ref()],
             &SSS_TOKEN_PROGRAM_ID,
@@ -84,8 +120,53 @@ pub mod sss_transfer_hook {
             if dest_bl.key() == dest_blacklist_pda
                 && dest_bl.data_len() > 0
                 && dest_bl.owner == &SSS_TOKEN_PROGRAM_ID
+                && read_blacklist_active(&dest_bl.try_borrow_data()?)
             {
                 return Err(error!(TransferHookError::RecipientBlacklisted));
+            }
+        }
+
+        // ── Allowlist checks (SSS-3) ──
+
+        let stablecoin_data = ctx.accounts.stablecoin.try_borrow_data()?;
+        let allowlist_enabled = read_enable_allowlist(&stablecoin_data);
+        drop(stablecoin_data);
+
+        if allowlist_enabled {
+            // Source must be on the allowlist
+            let (source_allowlist_pda, _) = Pubkey::find_program_address(
+                &[ALLOWLIST_SEED, stablecoin_key.as_ref(), source_owner.as_ref()],
+                &SSS_TOKEN_PROGRAM_ID,
+            );
+
+            let source_allowed = ctx.accounts.source_allowlist.as_ref()
+                .map(|al| {
+                    al.key() == source_allowlist_pda
+                        && al.data_len() > 0
+                        && al.owner == &SSS_TOKEN_PROGRAM_ID
+                })
+                .unwrap_or(false);
+
+            if !source_allowed {
+                return Err(error!(TransferHookError::SenderNotAllowlisted));
+            }
+
+            // Destination must be on the allowlist
+            let (dest_allowlist_pda, _) = Pubkey::find_program_address(
+                &[ALLOWLIST_SEED, stablecoin_key.as_ref(), dest_owner.as_ref()],
+                &SSS_TOKEN_PROGRAM_ID,
+            );
+
+            let dest_allowed = ctx.accounts.destination_allowlist.as_ref()
+                .map(|al| {
+                    al.key() == dest_allowlist_pda
+                        && al.data_len() > 0
+                        && al.owner == &SSS_TOKEN_PROGRAM_ID
+                })
+                .unwrap_or(false);
+
+            if !dest_allowed {
+                return Err(error!(TransferHookError::RecipientNotAllowlisted));
             }
         }
 
@@ -98,16 +179,6 @@ pub mod sss_transfer_hook {
     pub fn initialize_extra_account_meta_list(
         ctx: Context<InitializeExtraAccountMetaList>,
     ) -> Result<()> {
-        // Define the extra accounts the transfer hook expects beyond the
-        // standard source / mint / destination / authority:
-        //
-        // 1. Stablecoin config PDA — derived from [b"stablecoin", mint]
-        //    using the sss-token program.
-        // 2. Source blacklist PDA — derived from [b"blacklist", stablecoin, source_owner]
-        //    using the sss-token program.  (Optional at runtime, but must be
-        //    declared so Token-2022 knows the account position.)
-        // 3. Destination blacklist PDA — same derivation with dest_owner.
-
         // Account indices in the combined list (4 fixed + extras):
         //   0 = source token account
         //   1 = mint
@@ -117,14 +188,15 @@ pub mod sss_transfer_hook {
         //   5 = extra[1]: stablecoin config PDA
         //   6 = extra[2]: source blacklist PDA
         //   7 = extra[3]: destination blacklist PDA
+        //   8 = extra[4]: source allowlist PDA
+        //   9 = extra[5]: destination allowlist PDA
         let extra_account_metas = &[
             // extra[0]: sss-token program ID as a fixed pubkey account
             ExtraAccountMeta::new_with_pubkey(&SSS_TOKEN_PROGRAM_ID, false, false)
                 .map_err(|_| ProgramError::InvalidArgument)?,
             // extra[1]: stablecoin config PDA
-            // seeds: [b"stablecoin", mint.key()], program = extra[0] (abs index 4)
             ExtraAccountMeta::new_external_pda_with_seeds(
-                4, // abs index of sss-token program
+                4,
                 &[
                     Seed::Literal {
                         bytes: STABLECOIN_SEED.to_vec(),
@@ -136,8 +208,6 @@ pub mod sss_transfer_hook {
             )
             .map_err(|_| ProgramError::InvalidArgument)?,
             // extra[2]: source blacklist PDA
-            // seeds: [b"blacklist", stablecoin.key(), source_owner], program = extra[0]
-            // source_owner = bytes 32..64 of source token account (index 0)
             ExtraAccountMeta::new_external_pda_with_seeds(
                 4,
                 &[
@@ -145,23 +215,49 @@ pub mod sss_transfer_hook {
                         bytes: BLACKLIST_SEED.to_vec(),
                     },
                     Seed::AccountKey { index: 5 }, // stablecoin (abs index 5)
-                    Seed::AccountData { account_index: 0, data_index: 32, length: 32 }, // source token account owner
+                    Seed::AccountData { account_index: 0, data_index: 32, length: 32 },
                 ],
                 false,
                 false,
             )
             .map_err(|_| ProgramError::InvalidArgument)?,
             // extra[3]: destination blacklist PDA
-            // seeds: [b"blacklist", stablecoin.key(), dest_owner], program = extra[0]
-            // dest_owner = bytes 32..64 of destination token account (index 2)
             ExtraAccountMeta::new_external_pda_with_seeds(
                 4,
                 &[
                     Seed::Literal {
                         bytes: BLACKLIST_SEED.to_vec(),
                     },
-                    Seed::AccountKey { index: 5 }, // stablecoin (abs index 5)
-                    Seed::AccountData { account_index: 2, data_index: 32, length: 32 }, // dest token account owner
+                    Seed::AccountKey { index: 5 },
+                    Seed::AccountData { account_index: 2, data_index: 32, length: 32 },
+                ],
+                false,
+                false,
+            )
+            .map_err(|_| ProgramError::InvalidArgument)?,
+            // extra[4]: source allowlist PDA (SSS-3)
+            ExtraAccountMeta::new_external_pda_with_seeds(
+                4,
+                &[
+                    Seed::Literal {
+                        bytes: ALLOWLIST_SEED.to_vec(),
+                    },
+                    Seed::AccountKey { index: 5 },
+                    Seed::AccountData { account_index: 0, data_index: 32, length: 32 },
+                ],
+                false,
+                false,
+            )
+            .map_err(|_| ProgramError::InvalidArgument)?,
+            // extra[5]: destination allowlist PDA (SSS-3)
+            ExtraAccountMeta::new_external_pda_with_seeds(
+                4,
+                &[
+                    Seed::Literal {
+                        bytes: ALLOWLIST_SEED.to_vec(),
+                    },
+                    Seed::AccountKey { index: 5 },
+                    Seed::AccountData { account_index: 2, data_index: 32, length: 32 },
                 ],
                 false,
                 false,
@@ -169,7 +265,6 @@ pub mod sss_transfer_hook {
             .map_err(|_| ProgramError::InvalidArgument)?,
         ];
 
-        // Compute required space and initialize.
         let account_size = ExtraAccountMetaList::size_of(extra_account_metas.len())?;
         let lamports = Rent::get()?.minimum_balance(account_size);
 
@@ -179,7 +274,6 @@ pub mod sss_transfer_hook {
         let signer_seeds_with_bump: &[&[u8]] =
             &[b"extra-account-metas", mint_key.as_ref(), &[bump]];
 
-        // Create the account if needed (CPI to system program).
         system_program::create_account(
             CpiContext::new_with_signer(
                 ctx.accounts.system_program.to_account_info(),
@@ -194,13 +288,12 @@ pub mod sss_transfer_hook {
             &crate::id(),
         )?;
 
-        // Write the list into the newly created account.
         ExtraAccountMetaList::init::<ExecuteInstruction>(
             &mut ctx.accounts.extra_account_meta_list.try_borrow_mut_data()?,
             extra_account_metas,
         )?;
 
-        msg!("Extra account meta list initialized");
+        msg!("Extra account meta list initialized with blacklist + allowlist PDAs");
         Ok(())
     }
 }
@@ -211,6 +304,10 @@ pub enum TransferHookError {
     SenderBlacklisted,
     #[msg("Recipient is blacklisted")]
     RecipientBlacklisted,
+    #[msg("Sender is not on the allowlist")]
+    SenderNotAllowlisted,
+    #[msg("Recipient is not on the allowlist")]
+    RecipientNotAllowlisted,
 }
 
 #[derive(Accounts)]
@@ -231,7 +328,7 @@ pub struct Execute<'info> {
     /// CHECK: Validated by Token-2022
     pub authority: AccountInfo<'info>,
 
-    /// Stablecoin config PDA
+    /// Stablecoin config PDA (reads enable_allowlist flag)
     /// CHECK: Derived from mint
     pub stablecoin: AccountInfo<'info>,
 
@@ -242,6 +339,14 @@ pub struct Execute<'info> {
     /// Optional: destination blacklist PDA
     /// CHECK: We verify the PDA derivation
     pub destination_blacklist: Option<AccountInfo<'info>>,
+
+    /// Optional: source allowlist PDA (SSS-3)
+    /// CHECK: We verify the PDA derivation
+    pub source_allowlist: Option<AccountInfo<'info>>,
+
+    /// Optional: destination allowlist PDA (SSS-3)
+    /// CHECK: We verify the PDA derivation
+    pub destination_allowlist: Option<AccountInfo<'info>>,
 }
 
 #[derive(Accounts)]

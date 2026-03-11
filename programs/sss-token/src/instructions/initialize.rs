@@ -164,12 +164,13 @@ pub fn handler(ctx: Context<Initialize>, config: StablecoinInitConfig) -> Result
     stablecoin.enable_permanent_delegate = config.enable_permanent_delegate;
     stablecoin.enable_transfer_hook = config.enable_transfer_hook;
     stablecoin.default_account_frozen = config.default_account_frozen;
+    stablecoin.enable_allowlist = config.enable_allowlist;
     stablecoin.total_minted = 0;
     stablecoin.total_burned = 0;
     stablecoin.supply_cap = config.supply_cap.unwrap_or(0);
     stablecoin.pending_authority = Pubkey::default();
     stablecoin.bump = ctx.bumps.stablecoin;
-    stablecoin._reserved = [0u8; 24];
+    stablecoin._reserved = [0u8; 23];
 
     emit!(events::StablecoinInitialized {
         mint: ctx.accounts.mint.key(),
@@ -179,6 +180,7 @@ pub fn handler(ctx: Context<Initialize>, config: StablecoinInitConfig) -> Result
         decimals: config.decimals,
         compliance_enabled: stablecoin.is_compliance_enabled(),
         transfer_hook_enabled: config.enable_transfer_hook,
+        timestamp: Clock::get()?.unix_timestamp,
     });
 
     Ok(())

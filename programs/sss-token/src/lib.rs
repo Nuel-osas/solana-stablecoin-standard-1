@@ -132,4 +132,17 @@ pub mod sss_token {
     pub fn seize(ctx: Context<Seize>) -> Result<()> {
         instructions::compliance::seize_handler(ctx)
     }
+
+    // ============ SSS-3 Allowlist Operations ============
+
+    /// Add an address to the allowlist. Caller must be master authority.
+    /// SSS-3 only — allowlist restricts transfers to pre-approved addresses.
+    pub fn add_to_allowlist(ctx: Context<AllowlistAdd>, address: Pubkey) -> Result<()> {
+        instructions::allowlist::add_to_allowlist_handler(ctx, address)
+    }
+
+    /// Remove an address from the allowlist. Caller must be master authority.
+    pub fn remove_from_allowlist_entry(ctx: Context<AllowlistRemove>, address: Pubkey) -> Result<()> {
+        instructions::allowlist::remove_from_allowlist_handler(ctx, address)
+    }
 }
