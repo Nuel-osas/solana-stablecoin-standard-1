@@ -54,19 +54,36 @@ pub fn validate_oracle_price(
         SSSError::InvalidOracleFeed
     );
 
-    // Load Pyth price feed
-    let price_feed = pyth_sdk_solana::state::SolanaPriceAccount::account_info_to_feed(price_feed_account)
+    // Parse Pyth price account directly (avoids pyth-sdk-solana borsh conflict).
+    // Pyth v2 price account layout:
+    //   offset 0:   magic (u32) = 0xa1b2c3d4
+    //   offset 208: expo (i32)
+    //   offset 216: price (i64)
+    //   offset 224: conf (u64)
+    //   offset 232: status (u32): 1 = Trading
+    //   offset 40:  timestamp (i64) — publish_time at v2 offset
+    // We use the documented offsets from pyth-client.
+    let data = price_feed_account.try_borrow_data()
         .map_err(|_| SSSError::InvalidOracleFeed)?;
 
-    let price = price_feed
-        .get_price_no_older_than(current_timestamp, oracle_config.max_staleness_secs)
-        .ok_or(SSSError::OraclePriceStale)?;
+    // Minimum size check
+    require!(data.len() >= 240, SSSError::InvalidOracleFeed);
 
-    // Price is in fixed-point with `expo` decimal places.
-    // For USD stablecoins, we expect price ~= 1.00 USD.
-    // Pyth price has a negative exponent, e.g., price=100000000, expo=-8 means $1.00
-    let expo = price.expo;
-    let price_val = price.price;
+    // Verify magic number
+    let magic = u32::from_le_bytes(data[0..4].try_into().unwrap());
+    require!(magic == 0xa1b2c3d4, SSSError::InvalidOracleFeed);
+
+    let expo = i32::from_le_bytes(data[208..212].try_into().unwrap());
+    let price_val = i64::from_le_bytes(data[216..224].try_into().unwrap());
+    let status = u32::from_le_bytes(data[232..236].try_into().unwrap());
+    let publish_time = i64::from_le_bytes(data[40..48].try_into().unwrap());
+
+    // Status must be Trading (1)
+    require!(status == 1, SSSError::OraclePriceStale);
+
+    // Staleness check
+    let age = current_timestamp.saturating_sub(publish_time);
+    require!(age <= oracle_config.max_staleness_secs as i64, SSSError::OraclePriceStale);
 
     // Target price: 1.0 USD = 10^(-expo). Pyth USD feeds always have negative expo.
     require!(expo < 0, SSSError::InvalidOracleFeed);
