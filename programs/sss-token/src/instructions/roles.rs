@@ -65,6 +65,51 @@ pub fn revoke_role_handler(ctx: Context<RevokeRole>, _role: Role, _assignee: Pub
     Ok(())
 }
 
+/// Two-step authority transfer — step 1: nominate a pending authority.
+pub fn nominate_authority_handler(ctx: Context<NominateAuthority>, new_authority: Pubkey) -> Result<()> {
+    let stablecoin = &mut ctx.accounts.stablecoin;
+    require!(
+        ctx.accounts.authority.key() == stablecoin.authority,
+        SSSError::Unauthorized
+    );
+
+    stablecoin.pending_authority = new_authority;
+
+    emit!(events::AuthorityNominated {
+        mint: stablecoin.mint,
+        current_authority: ctx.accounts.authority.key(),
+        pending_authority: new_authority,
+    });
+
+    Ok(())
+}
+
+/// Two-step authority transfer — step 2: accept the nomination.
+pub fn accept_authority_handler(ctx: Context<AcceptAuthority>) -> Result<()> {
+    let stablecoin = &mut ctx.accounts.stablecoin;
+    require!(
+        stablecoin.pending_authority != Pubkey::default(),
+        SSSError::NoPendingAuthority
+    );
+    require!(
+        ctx.accounts.new_authority.key() == stablecoin.pending_authority,
+        SSSError::NotPendingAuthority
+    );
+
+    let old_authority = stablecoin.authority;
+    stablecoin.authority = stablecoin.pending_authority;
+    stablecoin.pending_authority = Pubkey::default();
+
+    emit!(events::AuthorityTransferred {
+        mint: stablecoin.mint,
+        old_authority,
+        new_authority: stablecoin.authority,
+    });
+
+    Ok(())
+}
+
+/// Direct (single-step) authority transfer — use with caution.
 pub fn transfer_authority_handler(ctx: Context<TransferAuthority>, new_authority: Pubkey) -> Result<()> {
     let stablecoin = &mut ctx.accounts.stablecoin;
     require!(
@@ -74,11 +119,33 @@ pub fn transfer_authority_handler(ctx: Context<TransferAuthority>, new_authority
 
     let old_authority = stablecoin.authority;
     stablecoin.authority = new_authority;
+    stablecoin.pending_authority = Pubkey::default(); // clear any pending nomination
 
     emit!(events::AuthorityTransferred {
         mint: stablecoin.mint,
         old_authority,
         new_authority,
+    });
+
+    Ok(())
+}
+
+/// Set or update supply cap. 0 = unlimited.
+pub fn set_supply_cap_handler(ctx: Context<SetSupplyCap>, supply_cap: u64) -> Result<()> {
+    let stablecoin = &mut ctx.accounts.stablecoin;
+    require!(
+        ctx.accounts.authority.key() == stablecoin.authority,
+        SSSError::Unauthorized
+    );
+
+    let old_cap = stablecoin.supply_cap;
+    stablecoin.supply_cap = supply_cap;
+
+    emit!(events::SupplyCapUpdated {
+        mint: stablecoin.mint,
+        old_cap,
+        new_cap: supply_cap,
+        by: ctx.accounts.authority.key(),
     });
 
     Ok(())
@@ -152,7 +219,46 @@ pub struct RevokeRole<'info> {
 }
 
 #[derive(Accounts)]
+pub struct NominateAuthority<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [STABLECOIN_SEED, stablecoin.mint.as_ref()],
+        bump = stablecoin.bump,
+    )]
+    pub stablecoin: Account<'info, Stablecoin>,
+}
+
+#[derive(Accounts)]
+pub struct AcceptAuthority<'info> {
+    #[account(mut)]
+    pub new_authority: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [STABLECOIN_SEED, stablecoin.mint.as_ref()],
+        bump = stablecoin.bump,
+    )]
+    pub stablecoin: Account<'info, Stablecoin>,
+}
+
+#[derive(Accounts)]
 pub struct TransferAuthority<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+
+    #[account(
+        mut,
+        seeds = [STABLECOIN_SEED, stablecoin.mint.as_ref()],
+        bump = stablecoin.bump,
+    )]
+    pub stablecoin: Account<'info, Stablecoin>,
+}
+
+#[derive(Accounts)]
+pub struct SetSupplyCap<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
 

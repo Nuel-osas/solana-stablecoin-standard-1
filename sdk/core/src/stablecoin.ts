@@ -130,6 +130,10 @@ export class SolanaStablecoin {
       defaultAccountFrozen = config.extensions.defaultAccountFrozen ?? defaultAccountFrozen;
     }
 
+    const supplyCap = config.supplyCap
+      ? (config.supplyCap instanceof anchor.BN ? config.supplyCap : new anchor.BN(config.supplyCap.toString()))
+      : null;
+
     const initConfig = {
       name: config.name,
       symbol: config.symbol,
@@ -138,6 +142,7 @@ export class SolanaStablecoin {
       enablePermanentDelegate,
       enableTransferHook,
       defaultAccountFrozen,
+      supplyCap,
     };
 
     // Build provider from the authority keypair
@@ -240,6 +245,8 @@ export class SolanaStablecoin {
         defaultAccountFrozen: account.defaultAccountFrozen,
         totalMinted: account.totalMinted,
         totalBurned: account.totalBurned,
+        supplyCap: account.supplyCap,
+        pendingAuthority: account.pendingAuthority,
         bump: account.bump,
       } as StablecoinState;
     } catch (e: any) {
@@ -500,7 +507,44 @@ export class SolanaStablecoin {
   }
 
   /**
-   * Transfer master authority to a new public key.
+   * Nominate a new authority (two-step transfer, step 1).
+   * The nominated authority must call acceptAuthority() to complete.
+   */
+  async nominateAuthority(
+    currentAuthority: Keypair,
+    newAuthority: PublicKey
+  ): Promise<string> {
+    const txSig = await this.program.methods
+      .nominateAuthority(newAuthority)
+      .accounts({
+        authority: currentAuthority.publicKey,
+        stablecoin: this.stablecoinPDA,
+      })
+      .signers([currentAuthority])
+      .rpc();
+
+    return txSig;
+  }
+
+  /**
+   * Accept a pending authority nomination (two-step transfer, step 2).
+   */
+  async acceptAuthority(newAuthority: Keypair): Promise<string> {
+    const txSig = await this.program.methods
+      .acceptAuthority()
+      .accounts({
+        newAuthority: newAuthority.publicKey,
+        stablecoin: this.stablecoinPDA,
+      })
+      .signers([newAuthority])
+      .rpc();
+
+    return txSig;
+  }
+
+  /**
+   * Direct transfer of master authority (single-step, use with caution).
+   * Prefer nominateAuthority + acceptAuthority for safety.
    */
   async transferAuthority(
     currentAuthority: Keypair,
@@ -513,6 +557,29 @@ export class SolanaStablecoin {
         stablecoin: this.stablecoinPDA,
       })
       .signers([currentAuthority])
+      .rpc();
+
+    return txSig;
+  }
+
+  /**
+   * Set or update the supply cap. Pass 0 to remove the cap.
+   */
+  async setSupplyCap(
+    authority: Keypair,
+    supplyCap: number | anchor.BN
+  ): Promise<string> {
+    const cap = supplyCap instanceof anchor.BN
+      ? supplyCap
+      : new anchor.BN(supplyCap.toString());
+
+    const txSig = await this.program.methods
+      .setSupplyCap(cap)
+      .accounts({
+        authority: authority.publicKey,
+        stablecoin: this.stablecoinPDA,
+      })
+      .signers([authority])
       .rpc();
 
     return txSig;

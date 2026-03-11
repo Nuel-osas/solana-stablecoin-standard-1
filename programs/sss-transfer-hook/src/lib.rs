@@ -9,6 +9,20 @@ use spl_transfer_hook_interface::instruction::ExecuteInstruction;
 
 declare_id!("63pY5GPBHKJ3gu99xTNH9yxUKgp8kUowiiHYzZtaE31E");
 
+#[cfg(not(feature = "no-entrypoint"))]
+use solana_security_txt::security_txt;
+
+#[cfg(not(feature = "no-entrypoint"))]
+security_txt! {
+    name: "SSS Transfer Hook — Solana Stablecoin Standard",
+    project_url: "https://github.com/Nuel-osas/solana-stablecoin-standard",
+    contacts: "link:https://github.com/Nuel-osas/solana-stablecoin-standard/issues",
+    policy: "https://github.com/Nuel-osas/solana-stablecoin-standard/blob/main/SECURITY.md",
+    preferred_languages: "en",
+    source_code: "https://github.com/Nuel-osas/solana-stablecoin-standard",
+    auditors: "None"
+}
+
 /// The sss-token program ID — blacklist PDAs are owned by this program.
 const SSS_TOKEN_PROGRAM_ID: Pubkey =
     pubkey!("CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ");
@@ -47,9 +61,15 @@ pub mod sss_transfer_hook {
             &SSS_TOKEN_PROGRAM_ID,
         );
 
-        // If the source_blacklist account exists and matches the PDA, the source is blacklisted
+        // If the source_blacklist PDA exists on-chain (data_len > 0) and the key
+        // matches the derived address, the source wallet is blacklisted.
+        // Token-2022 always passes the derived PDA via ExtraAccountMetaList, but
+        // the account will only have data if a BlacklistEntry was created.
         if let Some(source_bl) = &ctx.accounts.source_blacklist {
-            if source_bl.key() == source_blacklist_pda {
+            if source_bl.key() == source_blacklist_pda
+                && source_bl.data_len() > 0
+                && source_bl.owner == &SSS_TOKEN_PROGRAM_ID
+            {
                 return Err(error!(TransferHookError::SenderBlacklisted));
             }
         }
@@ -61,7 +81,10 @@ pub mod sss_transfer_hook {
         );
 
         if let Some(dest_bl) = &ctx.accounts.destination_blacklist {
-            if dest_bl.key() == dest_blacklist_pda {
+            if dest_bl.key() == dest_blacklist_pda
+                && dest_bl.data_len() > 0
+                && dest_bl.owner == &SSS_TOKEN_PROGRAM_ID
+            {
                 return Err(error!(TransferHookError::RecipientBlacklisted));
             }
         }

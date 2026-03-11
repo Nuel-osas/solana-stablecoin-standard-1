@@ -34,4 +34,10 @@ pub enum SSSError {
     TransferHookNotEnabled,
     #[msg("Cannot seize from a non-blacklisted account")]
     SeizeRequiresBlacklist,
+    #[msg("Supply cap would be exceeded")]
+    SupplyCapExceeded,
+    #[msg("No pending authority nomination")]
+    NoPendingAuthority,
+    #[msg("Caller is not the nominated pending authority")]
+    NotPendingAuthority,
 }

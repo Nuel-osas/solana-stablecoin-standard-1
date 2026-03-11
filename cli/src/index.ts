@@ -159,6 +159,7 @@ initCmd
           enablePermanentDelegate: false,
           enableTransferHook: false,
           defaultAccountFrozen: false,
+          supplyCap: null,
         })
         .accounts({
           authority: authority.publicKey,
@@ -214,6 +215,7 @@ initCmd
           enablePermanentDelegate: true,
           enableTransferHook: true,
           defaultAccountFrozen: false,
+          supplyCap: null,
         })
         .accounts({
           authority: authority.publicKey,
@@ -268,6 +270,7 @@ initCmd
           enablePermanentDelegate: config.enablePermanentDelegate ?? config.enable_permanent_delegate ?? false,
           enableTransferHook,
           defaultAccountFrozen: config.defaultAccountFrozen ?? config.default_account_frozen ?? false,
+          supplyCap: config.supplyCap ? new BN(config.supplyCap) : null,
         })
         .accounts({
           authority: authority.publicKey,
@@ -591,6 +594,12 @@ cli
       console.log(`  Default Account Frozen: ${stablecoin.defaultAccountFrozen}`);
       console.log(`  Total Minted: ${stablecoin.totalMinted.toString()}`);
       console.log(`  Total Burned: ${stablecoin.totalBurned.toString()}`);
+      const cap = stablecoin.supplyCap?.toString() ?? "0";
+      console.log(`  Supply Cap: ${cap === "0" ? "unlimited" : cap}`);
+      const pending = stablecoin.pendingAuthority?.toBase58();
+      if (pending && pending !== PublicKey.default.toBase58()) {
+        console.log(`  Pending Authority: ${pending}`);
+      }
     } catch (err: any) {
       console.error(`\nError fetching status: ${err.message}`);
       process.exit(1);

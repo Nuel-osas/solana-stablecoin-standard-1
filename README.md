@@ -158,12 +158,21 @@ No single key controls everything:
 
 | Role | Capabilities |
 |------|-------------|
-| **Master Authority** | Assign/revoke all roles, transfer authority |
+| **Master Authority** | Assign/revoke all roles, transfer authority (two-step), set supply cap |
 | **Minter** | Mint tokens (with per-minter quotas) |
 | **Burner** | Burn tokens |
 | **Pauser** | Pause/unpause, freeze/thaw accounts |
 | **Blacklister** | Add/remove from blacklist (SSS-2) |
 | **Seizer** | Seize tokens via permanent delegate (SSS-2) |
+
+## Security Features
+
+- **Two-step authority transfer**: `nominate_authority` → `accept_authority` prevents loss from typos (inspired by Circle FiatToken v2)
+- **Supply cap enforcement**: Optional `supply_cap` enforced at the program level on every mint
+- **`security_txt!` macro**: Both programs embed [security.txt](https://github.com/nickelreads/solana-security-txt) for responsible disclosure
+- **Role separation**: No single key controls everything — see RBAC table above
+- **Immutable compliance config**: SSS-1/SSS-2 extensions set at init, cannot be changed afterward
+- **PDA authority model**: All sensitive operations use program-derived authority, not EOA keys
 
 ## Token-2022 Extensions Used
 

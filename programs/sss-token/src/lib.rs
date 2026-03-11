@@ -11,6 +11,20 @@ use state::{StablecoinInitConfig, Role};
 
 declare_id!("CmyUqWVb4agcavSybreJ7xb7WoKUyWhpkEc6f1DnMEGJ");
 
+#[cfg(not(feature = "no-entrypoint"))]
+use solana_security_txt::security_txt;
+
+#[cfg(not(feature = "no-entrypoint"))]
+security_txt! {
+    name: "SSS Token — Solana Stablecoin Standard",
+    project_url: "https://github.com/Nuel-osas/solana-stablecoin-standard",
+    contacts: "link:https://github.com/Nuel-osas/solana-stablecoin-standard/issues",
+    policy: "https://github.com/Nuel-osas/solana-stablecoin-standard/blob/main/SECURITY.md",
+    preferred_languages: "en",
+    source_code: "https://github.com/Nuel-osas/solana-stablecoin-standard",
+    auditors: "None"
+}
+
 #[program]
 pub mod sss_token {
     use super::*;
@@ -67,7 +81,21 @@ pub mod sss_token {
         instructions::roles::revoke_role_handler(ctx, role, assignee)
     }
 
-    /// Transfer master authority. Caller must be current master.
+    /// Nominate a new master authority (two-step transfer, step 1).
+    /// The new authority must call accept_authority to complete the transfer.
+    /// This prevents accidental loss of authority from typos.
+    pub fn nominate_authority(ctx: Context<NominateAuthority>, new_authority: Pubkey) -> Result<()> {
+        instructions::roles::nominate_authority_handler(ctx, new_authority)
+    }
+
+    /// Accept a pending authority nomination (two-step transfer, step 2).
+    /// Caller must be the nominated pending authority.
+    pub fn accept_authority(ctx: Context<AcceptAuthority>) -> Result<()> {
+        instructions::roles::accept_authority_handler(ctx)
+    }
+
+    /// Direct transfer of master authority (single-step, use with caution).
+    /// Prefer nominate_authority + accept_authority for safety.
     pub fn transfer_authority(ctx: Context<TransferAuthority>, new_authority: Pubkey) -> Result<()> {
         instructions::roles::transfer_authority_handler(ctx, new_authority)
     }
@@ -75,6 +103,11 @@ pub mod sss_token {
     /// Update minter quota. Caller must be master authority.
     pub fn update_minter_quota(ctx: Context<UpdateMinterQuota>, new_quota: u64) -> Result<()> {
         instructions::roles::update_minter_quota_handler(ctx, new_quota)
+    }
+
+    /// Set or update the supply cap. Only master authority. Set to 0 to remove cap.
+    pub fn set_supply_cap(ctx: Context<SetSupplyCap>, supply_cap: u64) -> Result<()> {
+        instructions::roles::set_supply_cap_handler(ctx, supply_cap)
     }
 
     // ============ SSS-2 Compliance Operations ============

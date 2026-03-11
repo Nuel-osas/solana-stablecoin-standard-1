@@ -86,7 +86,6 @@ pub fn thaw_handler(ctx: Context<ThawAccount>) -> Result<()> {
 
 #[derive(Accounts)]
 pub struct FreezeAccount<'info> {
-    #[account(mut)]
     pub authority: Signer<'info>,
 
     #[account(
@@ -113,7 +112,6 @@ pub struct FreezeAccount<'info> {
 
 #[derive(Accounts)]
 pub struct ThawAccount<'info> {
-    #[account(mut)]
     pub authority: Signer<'info>,
 
     #[account(

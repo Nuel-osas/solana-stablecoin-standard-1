@@ -20,6 +20,15 @@ pub fn handler(ctx: Context<MintTokens>, amount: u64) -> Result<()> {
         SSSError::Unauthorized
     );
 
+    // Enforce supply cap if set
+    if stablecoin.supply_cap > 0 {
+        let net_supply = stablecoin.total_minted.saturating_sub(stablecoin.total_burned);
+        require!(
+            net_supply.checked_add(amount).ok_or(SSSError::MathOverflow)? <= stablecoin.supply_cap,
+            SSSError::SupplyCapExceeded
+        );
+    }
+
     // Check and update minter quota
     let minter_info = &mut ctx.accounts.minter_info;
     if minter_info.quota > 0 {

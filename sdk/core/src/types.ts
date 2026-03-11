@@ -34,6 +34,7 @@ export interface StablecoinConfig {
     transferHook?: boolean;
     defaultAccountFrozen?: boolean;
   };
+  supplyCap?: number | anchor.BN;
 }
 
 export interface StablecoinState {
@@ -49,6 +50,8 @@ export interface StablecoinState {
   defaultAccountFrozen: boolean;
   totalMinted: anchor.BN;
   totalBurned: anchor.BN;
+  supplyCap: anchor.BN;
+  pendingAuthority: PublicKey;
   bump: number;
 }
 

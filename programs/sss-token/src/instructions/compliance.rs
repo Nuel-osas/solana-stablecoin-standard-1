@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use anchor_spl::token_2022;
 use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 use crate::constants::*;
@@ -98,27 +99,20 @@ pub fn seize_handler(ctx: Context<Seize>) -> Result<()> {
         &[stablecoin.bump],
     ];
 
-    // Use transfer_checked with permanent delegate authority
-    let ix = spl_token_2022::instruction::transfer_checked(
-        ctx.accounts.token_program.key,
-        &ctx.accounts.source_account.key(),
-        &ctx.accounts.mint.key(),
-        &ctx.accounts.treasury_account.key(),
-        &ctx.accounts.stablecoin.key(), // permanent delegate
-        &[],
+    // Use transfer_checked via permanent delegate authority
+    token_2022::transfer_checked(
+        CpiContext::new_with_signer(
+            ctx.accounts.token_program.to_account_info(),
+            token_2022::TransferChecked {
+                from: ctx.accounts.source_account.to_account_info(),
+                mint: ctx.accounts.mint.to_account_info(),
+                to: ctx.accounts.treasury_account.to_account_info(),
+                authority: ctx.accounts.stablecoin.to_account_info(),
+            },
+            &[seeds],
+        ),
         amount,
         stablecoin.decimals,
-    )?;
-
-    anchor_lang::solana_program::program::invoke_signed(
-        &ix,
-        &[
-            ctx.accounts.source_account.to_account_info(),
-            ctx.accounts.mint.to_account_info(),
-            ctx.accounts.treasury_account.to_account_info(),
-            ctx.accounts.stablecoin.to_account_info(),
-        ],
-        &[seeds],
     )?;
 
     emit!(events::TokensSeized {

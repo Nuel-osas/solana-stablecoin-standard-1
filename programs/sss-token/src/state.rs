@@ -30,10 +30,14 @@ pub struct Stablecoin {
     pub total_minted: u64,
     /// Total burned tracked on-chain
     pub total_burned: u64,
+    /// Maximum supply cap (0 = unlimited)
+    pub supply_cap: u64,
+    /// Pending authority for two-step transfer (Pubkey::default() = none)
+    pub pending_authority: Pubkey,
     /// PDA bump
     pub bump: u8,
     /// Reserved for future upgrades
-    pub _reserved: [u8; 64],
+    pub _reserved: [u8; 24],
 }
 
 impl Stablecoin {
@@ -50,8 +54,10 @@ impl Stablecoin {
         1 +                        // default_account_frozen
         8 +                        // total_minted
         8 +                        // total_burned
+        8 +                        // supply_cap
+        32 +                       // pending_authority
         1 +                        // bump
-        64;                        // _reserved
+        24;                        // _reserved
 
     pub fn is_compliance_enabled(&self) -> bool {
         self.enable_permanent_delegate || self.enable_transfer_hook
@@ -162,6 +168,8 @@ pub struct StablecoinInitConfig {
     pub enable_transfer_hook: bool,
     /// SSS-2: new accounts start frozen until explicitly thawed
     pub default_account_frozen: bool,
+    /// Optional supply cap (None or 0 = unlimited)
+    pub supply_cap: Option<u64>,
 }
 
 impl StablecoinInitConfig {
@@ -175,6 +183,7 @@ impl StablecoinInitConfig {
             enable_permanent_delegate: false,
             enable_transfer_hook: false,
             default_account_frozen: false,
+            supply_cap: None,
         }
     }
 
@@ -188,6 +197,7 @@ impl StablecoinInitConfig {
             enable_permanent_delegate: true,
             enable_transfer_hook: true,
             default_account_frozen: false,
+            supply_cap: None,
         }
     }
 }

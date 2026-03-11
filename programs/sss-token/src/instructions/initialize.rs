@@ -166,8 +166,10 @@ pub fn handler(ctx: Context<Initialize>, config: StablecoinInitConfig) -> Result
     stablecoin.default_account_frozen = config.default_account_frozen;
     stablecoin.total_minted = 0;
     stablecoin.total_burned = 0;
+    stablecoin.supply_cap = config.supply_cap.unwrap_or(0);
+    stablecoin.pending_authority = Pubkey::default();
     stablecoin.bump = ctx.bumps.stablecoin;
-    stablecoin._reserved = [0u8; 64];
+    stablecoin._reserved = [0u8; 24];
 
     emit!(events::StablecoinInitialized {
         mint: ctx.accounts.mint.key(),

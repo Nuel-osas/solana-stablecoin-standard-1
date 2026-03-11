@@ -69,10 +69,25 @@ pub struct RoleRevoked {
 }
 
 #[event]
+pub struct AuthorityNominated {
+    pub mint: Pubkey,
+    pub current_authority: Pubkey,
+    pub pending_authority: Pubkey,
+}
+
+#[event]
 pub struct AuthorityTransferred {
     pub mint: Pubkey,
     pub old_authority: Pubkey,
     pub new_authority: Pubkey,
+}
+
+#[event]
+pub struct SupplyCapUpdated {
+    pub mint: Pubkey,
+    pub old_cap: u64,
+    pub new_cap: u64,
+    pub by: Pubkey,
 }
 
 #[event]

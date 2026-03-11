@@ -2664,6 +2664,7 @@ version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
+ "solana-security-txt",
  "spl-token-2022",
  "spl-token-metadata-interface 0.5.1",
 ]
@@ -2674,6 +2675,7 @@ version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "anchor-spl",
+ "solana-security-txt",
  "spl-tlv-account-resolution",
  "spl-token-2022",
  "spl-transfer-hook-interface",

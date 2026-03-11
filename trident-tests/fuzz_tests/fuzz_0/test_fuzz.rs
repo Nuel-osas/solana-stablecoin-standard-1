@@ -50,8 +50,10 @@ fn build_stablecoin_data(
     d.push(0);                                       // default_account_frozen
     d.extend_from_slice(&0u64.to_le_bytes());        // total_minted
     d.extend_from_slice(&0u64.to_le_bytes());        // total_burned
+    d.extend_from_slice(&0u64.to_le_bytes());        // supply_cap
+    d.extend_from_slice(&Pubkey::default().to_bytes()); // pending_authority
     d.push(bump);                                    // bump
-    d.extend_from_slice(&[0u8; 64]);                 // _reserved
+    d.extend_from_slice(&[0u8; 24]);                 // _reserved
     d
 }
 
