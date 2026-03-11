@@ -80,11 +80,10 @@ pub fn validate_oracle_price(
         .checked_div(target)
         .ok_or(SSSError::MathOverflow)?;
 
-    let deviation_bps = u16::try_from(deviation_bps_i64)
-        .map_err(|_| error!(SSSError::MathOverflow))?;
-
+    // Compare as i64 to avoid u16 overflow on far-from-peg feeds (e.g. SOL/USD at $150).
+    // Any deviation exceeding u16::MAX bps (~655%) is clearly depegged.
     require!(
-        deviation_bps <= oracle_config.max_deviation_bps,
+        deviation_bps_i64 <= oracle_config.max_deviation_bps as i64,
         SSSError::OraclePriceDepegged
     );
 
