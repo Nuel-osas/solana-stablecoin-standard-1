@@ -20,6 +20,8 @@ import MintBurn from "./pages/MintBurn";
 import Blacklist from "./pages/Blacklist";
 import Roles from "./pages/Roles";
 import Allowlist from "./pages/Allowlist";
+import Authority from "./pages/Authority";
+import MinterQuotas from "./pages/MinterQuotas";
 import AuditLog from "./pages/AuditLog";
 
 export default function App() {
@@ -73,6 +75,14 @@ export default function App() {
                   <Route
                     path="/allowlist"
                     element={<Allowlist mintAddress={mintAddress} />}
+                  />
+                  <Route
+                    path="/authority"
+                    element={<Authority mintAddress={mintAddress} />}
+                  />
+                  <Route
+                    path="/minter-quotas"
+                    element={<MinterQuotas mintAddress={mintAddress} />}
                   />
                   <Route
                     path="/audit-log"

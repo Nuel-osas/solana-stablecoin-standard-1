@@ -1146,6 +1146,156 @@ cli
     }
   });
 
+// ============ Authority Management ============
+
+cli
+  .command("nominate-authority")
+  .description("Nominate a new master authority (two-step transfer, step 1)")
+  .requiredOption("--new-authority <address>", "New authority address")
+  .requiredOption("--mint <address>", "Stablecoin mint address")
+  .option("--cluster <cluster>", "Solana cluster", "devnet")
+  .option("--keypair <path>", "Current authority keypair", "~/.config/solana/id.json")
+  .action(async (opts) => {
+    try {
+      const connection = getConnection(opts.cluster);
+      const authority = loadKeypair(opts.keypair);
+      const program = getProgram(connection, authority);
+      const mint = requireMint(opts);
+      const newAuthority = new PublicKey(opts.newAuthority);
+      const [stablecoinPDA] = getStablecoinPDA(mint);
+
+      console.log(`\nNominating new authority: ${newAuthority.toBase58()}`);
+      console.log(`  Mint: ${mint.toBase58()}`);
+      console.log(`  The new authority must call 'accept-authority' to complete the transfer.`);
+
+      const tx = await program.methods
+        .nominateAuthority(newAuthority)
+        .accounts({
+          authority: authority.publicKey,
+          stablecoin: stablecoinPDA,
+        })
+        .rpc();
+
+      console.log(`\n  Authority nominated successfully!`);
+      console.log(`  Transaction: ${tx}`);
+    } catch (err: any) {
+      console.error(`\nError nominating authority: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+cli
+  .command("accept-authority")
+  .description("Accept a pending authority nomination (two-step transfer, step 2)")
+  .requiredOption("--mint <address>", "Stablecoin mint address")
+  .option("--cluster <cluster>", "Solana cluster", "devnet")
+  .option("--keypair <path>", "New authority keypair (must be the nominated address)", "~/.config/solana/id.json")
+  .action(async (opts) => {
+    try {
+      const connection = getConnection(opts.cluster);
+      const newAuthority = loadKeypair(opts.keypair);
+      const program = getProgram(connection, newAuthority);
+      const mint = requireMint(opts);
+      const [stablecoinPDA] = getStablecoinPDA(mint);
+
+      console.log(`\nAccepting authority for mint: ${mint.toBase58()}`);
+      console.log(`  New authority: ${newAuthority.publicKey.toBase58()}`);
+
+      const tx = await program.methods
+        .acceptAuthority()
+        .accounts({
+          newAuthority: newAuthority.publicKey,
+          stablecoin: stablecoinPDA,
+        })
+        .rpc();
+
+      console.log(`\n  Authority transferred successfully!`);
+      console.log(`  Transaction: ${tx}`);
+    } catch (err: any) {
+      console.error(`\nError accepting authority: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+// ============ Supply Cap ============
+
+cli
+  .command("set-supply-cap")
+  .description("Set or update the supply cap (0 = unlimited)")
+  .requiredOption("--cap <amount>", "New supply cap (raw amount, 0 = unlimited)")
+  .requiredOption("--mint <address>", "Stablecoin mint address")
+  .option("--cluster <cluster>", "Solana cluster", "devnet")
+  .option("--keypair <path>", "Authority keypair", "~/.config/solana/id.json")
+  .action(async (opts) => {
+    try {
+      const connection = getConnection(opts.cluster);
+      const authority = loadKeypair(opts.keypair);
+      const program = getProgram(connection, authority);
+      const mint = requireMint(opts);
+      const [stablecoinPDA] = getStablecoinPDA(mint);
+      const cap = new BN(opts.cap);
+
+      console.log(`\nSetting supply cap for mint: ${mint.toBase58()}`);
+      console.log(`  New cap: ${cap.toString() === "0" ? "Unlimited" : cap.toString()}`);
+
+      const tx = await program.methods
+        .setSupplyCap(cap)
+        .accounts({
+          authority: authority.publicKey,
+          stablecoin: stablecoinPDA,
+        })
+        .rpc();
+
+      console.log(`\n  Supply cap updated successfully!`);
+      console.log(`  Transaction: ${tx}`);
+    } catch (err: any) {
+      console.error(`\nError setting supply cap: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
+// ============ Update Minter Quota ============
+
+cli
+  .command("update-minter-quota")
+  .description("Update an existing minter's quota")
+  .requiredOption("--address <address>", "Minter address")
+  .requiredOption("--quota <amount>", "New quota (raw amount, 0 = unlimited)")
+  .requiredOption("--mint <address>", "Stablecoin mint address")
+  .option("--cluster <cluster>", "Solana cluster", "devnet")
+  .option("--keypair <path>", "Authority keypair", "~/.config/solana/id.json")
+  .action(async (opts) => {
+    try {
+      const connection = getConnection(opts.cluster);
+      const authority = loadKeypair(opts.keypair);
+      const program = getProgram(connection, authority);
+      const mint = requireMint(opts);
+      const minter = new PublicKey(opts.address);
+      const [stablecoinPDA] = getStablecoinPDA(mint);
+      const [minterInfo] = getMinterInfoPDA(stablecoinPDA, minter);
+      const quota = new BN(opts.quota);
+
+      console.log(`\nUpdating quota for minter: ${minter.toBase58()}`);
+      console.log(`  Mint: ${mint.toBase58()}`);
+      console.log(`  New quota: ${quota.toString() === "0" ? "Unlimited" : quota.toString()}`);
+
+      const tx = await program.methods
+        .updateMinterQuota(quota)
+        .accounts({
+          authority: authority.publicKey,
+          stablecoin: stablecoinPDA,
+          minterInfo,
+        })
+        .rpc();
+
+      console.log(`\n  Minter quota updated successfully!`);
+      console.log(`  Transaction: ${tx}`);
+    } catch (err: any) {
+      console.error(`\nError updating minter quota: ${err.message}`);
+      process.exit(1);
+    }
+  });
+
 // ============ SSS-3 Allowlist Commands ============
 
 const allowlistCmd = cli

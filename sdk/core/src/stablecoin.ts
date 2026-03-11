@@ -595,6 +595,37 @@ export class SolanaStablecoin {
   }
 
   /**
+   * Update an existing minter's quota. Caller must be master authority.
+   */
+  async updateMinterQuota(
+    authority: Keypair,
+    minter: PublicKey,
+    newQuota: number | anchor.BN
+  ): Promise<string> {
+    const quota = newQuota instanceof anchor.BN
+      ? newQuota
+      : new anchor.BN(newQuota.toString());
+
+    const [minterInfoPDA] = findMinterInfoPDA(
+      this.stablecoinPDA,
+      minter,
+      this.programId
+    );
+
+    const txSig = await this.program.methods
+      .updateMinterQuota(quota)
+      .accounts({
+        authority: authority.publicKey,
+        stablecoin: this.stablecoinPDA,
+        minterInfo: minterInfoPDA,
+      })
+      .signers([authority])
+      .rpc();
+
+    return txSig;
+  }
+
+  /**
    * Get total supply (minted - burned).
    */
   async getTotalSupply(): Promise<anchor.BN> {
