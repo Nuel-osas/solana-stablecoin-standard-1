@@ -37,7 +37,7 @@ Both programs are live on Solana Devnet:
 |----------|------|-------------|
 | **SSS-1** | Minimal Stablecoin | Mint authority + freeze authority + metadata. What's needed on every stable, nothing more. |
 | **SSS-2** | Compliant Stablecoin | SSS-1 + permanent delegate + transfer hook + blacklist enforcement. USDC/USDT-class compliance. |
-| **SSS-3** | Private Stablecoin | SSS-2 + allowlist-gated transfers + confidential transfer extension (experimental). Only pre-approved addresses can send/receive. ZK-encrypted balances ready for when Solana enables the ZK ElGamal program. |
+| **SSS-3** | Private Stablecoin | SSS-2 + allowlist-gated transfers + confidential transfer extension. Full CT flow verified on localnet (`yarn test:ct`). Devnet/mainnet blocked upstream (ZK ElGamal program disabled). |
 
 ## Quick Start
 
@@ -254,13 +254,20 @@ SSS-3 initializes the `ConfidentialTransferMint` extension on the mint, enabling
 | **Confidential transfer** | **Working** | ZK proofs generated and verified on-chain |
 | **Withdraw from confidential balance** | **Working** | Decrypted back to public balance |
 
-### How we tested it
+### How to reproduce
 
-The default test validator ships Token-2022 v6.0.0, but the CLI v5.5.0 expects v10.0.0. We built Token-2022 v10.0.0 from [source](https://github.com/solana-program/token-2022) with `zk-ops` (default feature) and loaded it via `solana-test-validator --bpf-program`. Full reproduction steps in [`docs/SSS-3.md`](docs/SSS-3.md).
+```bash
+yarn test:ct   # runs both phases, ~1 min
+```
 
-### Devnet/Mainnet limitations
+Phase 1 runs `anchor test` to verify our SSS-3 program initializes the `ConfidentialTransferMint` extension on the mint. Phase 2 builds Token-2022 v10.0.0 from [source](https://github.com/solana-program/token-2022) with `zk-ops`, starts a test validator, and runs the full CT flow. See [`docs/SSS-3.md`](docs/SSS-3.md) for details.
 
-The ZK ElGamal Proof program is disabled on devnet/mainnet (security audit pending). Once enabled and Token-2022 is updated to v10.0.0+, the same flow will work in production.
+### Cluster availability
+
+| Cluster | CT Status | Why |
+|---------|-----------|-----|
+| **Localnet** | **Working** | Token-2022 v10 with `zk-ops` loaded via `--bpf-program` |
+| Devnet/Mainnet | Blocked upstream | ZK ElGamal Proof program disabled (security audit pending) |
 
 ## Testing
 

@@ -119,15 +119,32 @@ describe("SSS-3: Private Stablecoin (Allowlist)", () => {
   });
 
   it("SSS-3 mint has ConfidentialTransferMint extension", async () => {
-    const mintInfo = await getMint(
-      provider.connection,
-      mintKeypair.publicKey,
-      "confirmed",
-      TOKEN_2022_PROGRAM_ID
-    );
-    const extensions = getExtensionTypes(mintInfo.tlvData);
-    expect(extensions).to.include(ExtensionType.ConfidentialTransferMint);
-    console.log("  ConfidentialTransferMint extension verified on SSS-3 mint");
+    const mintAccount = await provider.connection.getAccountInfo(mintKeypair.publicKey);
+    expect(mintAccount).to.not.be.null;
+    expect(mintAccount!.owner.toBase58()).to.equal(TOKEN_2022_PROGRAM_ID.toBase58());
+
+    // ConfidentialTransferMint extension type ID is 12 (0x0C, 0x00 in LE u16)
+    // Scan the TLV data after the base mint (165 bytes) for extension type 12
+    const data = mintAccount!.data;
+    const CT_EXTENSION_TYPE = 12;
+    let found = false;
+
+    // Token-2022 TLV starts after the base mint data (165 bytes)
+    // Format: [type: u16 LE][length: u16 LE][data: length bytes]
+    let offset = 165 + 1; // 165 base mint + 1 byte account type
+    while (offset + 4 <= data.length) {
+      const extType = data.readUInt16LE(offset);
+      const extLen = data.readUInt16LE(offset + 2);
+      if (extType === CT_EXTENSION_TYPE) {
+        found = true;
+        break;
+      }
+      if (extType === 0 && extLen === 0) break; // end of extensions
+      offset += 4 + extLen;
+    }
+
+    expect(found, "ConfidentialTransferMint extension (type 12) must be present").to.be.true;
+    console.log("  ConfidentialTransferMint extension verified on SSS-3 mint (raw TLV scan)");
   });
 
   it("adds address to allowlist", async () => {

@@ -2,9 +2,9 @@
 
 ## Overview
 
-SSS-3 defines the private stablecoin — SSS-2 plus **allowlist-gated transfers** and **confidential transfer extension**. Only pre-approved addresses can send or receive tokens, and the mint is configured for future confidential (ZK-encrypted) transfers.
+SSS-3 defines the private stablecoin — SSS-2 plus **allowlist-gated transfers** and **confidential transfer extension**. Only pre-approved addresses can send or receive tokens, and the mint is configured for confidential (ZK-encrypted) transfers.
 
-**Status**: Experimental proof-of-concept. The Solana ZK ElGamal program required for full confidential transfer operations is not yet enabled on devnet/mainnet. The ConfidentialTransferMint extension is initialized on the mint to signal intent and readiness.
+**Status**: The full confidential transfer flow (deposit, ZK transfer, withdraw) is **verified on localnet** via `yarn test:ct`. On devnet/mainnet, the ZK ElGamal program is not yet enabled and Token-2022 needs to be updated to v10.0.0+.
 
 **Use cases**: Institutional tokens, permissioned stablecoins, jurisdiction-restricted tokens, private settlement networks.
 
