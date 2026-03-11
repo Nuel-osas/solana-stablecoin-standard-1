@@ -11,6 +11,7 @@
     "test": "anchor test",
     "test:local": "anchor test --skip-local-validator",
     "test:sdk": "yarn workspaces run test",
+    "test:ct": "./scripts/test-confidential-transfer.sh",
     "clean": "yarn workspaces run clean",
     "cli": "npx ts-node cli/src/index.ts"
   },

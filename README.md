@@ -280,8 +280,11 @@ The ZK ElGamal Proof program is disabled on devnet/mainnet (security audit pendi
 ### Run Tests
 
 ```bash
-# Anchor integration tests (57 tests)
+# Anchor integration tests (58 tests)
 anchor test
+
+# SSS-3 confidential transfer full flow (localnet, builds Token-2022 v10.0.0)
+yarn test:ct
 
 # SDK unit tests
 cd sdk/core && yarn test
