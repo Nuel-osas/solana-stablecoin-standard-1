@@ -1,5 +1,7 @@
 # Solana Stablecoin Standard (SSS)
 
+[![CI](https://github.com/Nuel-osas/solana-stablecoin-standard-1/actions/workflows/ci.yml/badge.svg)](https://github.com/Nuel-osas/solana-stablecoin-standard-1/actions/workflows/ci.yml)
+
 A modular SDK with opinionated presets covering the most common stablecoin architectures on Solana. Built on Token-2022 extensions.
 
 Think **OpenZeppelin for stablecoins**: the library is the SDK, the standards (SSS-1, SSS-2, SSS-3) are opinionated presets that get adopted.
@@ -37,7 +39,7 @@ Both programs are live on Solana Devnet:
 |----------|------|-------------|
 | **SSS-1** | Minimal Stablecoin | Mint authority + freeze authority + metadata. What's needed on every stable, nothing more. |
 | **SSS-2** | Compliant Stablecoin | SSS-1 + permanent delegate + transfer hook + blacklist enforcement. USDC/USDT-class compliance. |
-| **SSS-3** | Private Stablecoin | SSS-2 + allowlist-gated transfers + confidential transfer extension. Full CT flow verified on localnet (`yarn test:ct`). Devnet/mainnet blocked upstream (ZK ElGamal program disabled). |
+| **SSS-3** | Private Stablecoin | SSS-2 + allowlist-gated transfers + confidential transfer extension. **End-to-end CT with transfer hook + allowlist enforcement verified** — full SSS-3 flow on localnet (`bash scripts/test-ct-e2e.sh`, 14/14 checks). |
 
 ## Quick Start
 
@@ -79,6 +81,14 @@ yarn cli unpause --mint <address>
 # Check status
 yarn cli status --mint <address>
 yarn cli supply --mint <address>
+```
+
+### Metadata
+
+```bash
+# Update metadata URI (logo, docs, legal text). Authority-only.
+# Name and symbol are immutable after initialization to prevent ticker confusion.
+yarn cli update-metadata --uri "https://example.com/new-metadata.json" --mint <address>
 ```
 
 ### Role Management
@@ -291,29 +301,43 @@ await stablecoin.configureOracle({
 | Default Account State | | Optional | Optional | Freeze new accounts by default |
 | ConfidentialTransferMint | | | Yes | ZK-encrypted balances (experimental PoC) |
 
-## SSS-3 Confidential Transfer (Verified on Localnet)
+## SSS-3 Confidential Transfer (End-to-End Verified on Localnet)
 
-SSS-3 initializes the `ConfidentialTransferMint` extension on the mint, enabling ZK-encrypted confidential transfers. We verified the CT mechanics on localnet in two phases: (1) our Anchor program provisions mints with the CT extension, and (2) the full CT flow (deposit → ZK transfer → withdraw) works using Token-2022 v10.0.0 built from source. Phase 2 uses a standalone v10 mint because our program depends on Token-2022 v6 via `anchor-spl` — the two phases will unify when the Anchor ecosystem upgrades to v10.
+SSS-3 stablecoins support **end-to-end ZK confidential transfers** on localnet with full transfer hook + allowlist enforcement. The test creates a full SSS-3 stablecoin (transfer hook + allowlist + CT), adds parties to the allowlist, then performs deposit → confidential transfer (ZK proofs + allowlist enforcement) → withdraw.
 
-### CT Verification — Two-Phase Results
+### How it works
+Our Anchor program uses `spl-token-2022 v6` for CPI, but SPL Token-2022 instruction formats are **ABI-stable** — v6 CPI calls work correctly against v10 Token-2022 runtime. The transfer hook's allowlist is enforced even during confidential transfers via a `fallback` handler.
+
+### CT Verification Results (14/14 checks passed)
 
 | Step | Status | Notes |
 |------|--------|-------|
-| ConfidentialTransferMint init on mint | Working | Extension verified in test suite |
-| Token account creation | Working | Standard Token-2022 accounts |
-| Account CT configuration (ElGamal keys) | Working | ElGamal encryption keys generated and stored |
-| Deposit into confidential balance | Working | Tokens converted to encrypted balance |
-| Apply pending balance | Working | Pending balance applied to available |
-| **Confidential transfer** | **Working** | ZK proofs generated and verified on-chain |
-| **Withdraw from confidential balance** | **Working** | Decrypted back to public balance |
+| Build SSS-3 programs | Working | Anchor build |
+| Build Token-2022 v10 with zk-ops | Working | Built from source |
+| Start validator (v10 + SSS programs) | Working | Custom validator setup |
+| **Create SSS-3 mint via `init sss-3`** | **Working** | v6 CPI → v10 runtime, hook + allowlist + CT |
+| Auto-init transfer hook ExtraAccountMetaList | Working | Hook ready for enforcement |
+| Verify CT extension on mint | Working | `ConfidentialTransferMint` confirmed |
+| Assign minter + mint 1000 tokens | Working | Program RBAC + mint |
+| **Add sender to allowlist** | **Working** | SSS-3 compliance requirement |
+| Configure CT (ElGamal keys) | Working | Sender + recipient configured |
+| **Add recipient to allowlist** | **Working** | SSS-3 compliance requirement |
+| **Deposit 100 into confidential balance** | **Working** | Public → encrypted |
+| **Confidential transfer 50 tokens** | **Working** | ZK proofs + transfer hook allowlist enforced |
+| **Withdraw 25 from confidential** | **Working** | Encrypted → public |
+| Verify final balances (900 / 25) | Working | Sender: 900 public, Recipient: 25 public |
 
 ### How to reproduce
 
 ```bash
-yarn test:ct   # runs both phases, ~1 min
+# End-to-end CT on SSS-3 program mint (14/14 checks):
+bash scripts/test-ct-e2e.sh
+
+# Standalone CT verification + anchor tests:
+yarn test:ct
 ```
 
-Phase 1 runs `anchor test` to verify our SSS-3 program initializes the `ConfidentialTransferMint` extension on the mint. Phase 2 builds Token-2022 v10.0.0 from [source](https://github.com/solana-program/token-2022) with `zk-ops`, starts a test validator, and runs the full CT flow. See [`docs/SSS-3.md`](docs/SSS-3.md) for details.
+The e2e test builds Token-2022 v10.0.0 from [source](https://github.com/solana-program/token-2022), starts a validator with v10 + SSS programs, creates an SSS-3 stablecoin, and runs the full CT flow. See [`evidence/CT-PROOF.md`](evidence/CT-PROOF.md) for details.
 
 ### Cluster availability
 
@@ -324,27 +348,47 @@ Phase 1 runs `anchor test` to verify our SSS-3 program initializes the `Confiden
 
 ## Testing
 
-58 integration tests across 6 test suites, all passing:
+218+ tests across multiple test suites, all passing:
 
 ```
-  SSS-1: Minimal Stablecoin (7 tests)
-  SSS-2: Compliant Stablecoin (7 tests)
-  SSS-3: Private Stablecoin — Allowlist + Confidential Transfer (11 tests)
-  Authority Transfer (7 tests)
-  Supply Cap & Minter Quotas (10 tests)
-  Roles Edge Cases (16 tests)
+  Anchor Integration Tests (134 tests):
+    SSS-1: Minimal Stablecoin (7 tests)
+    SSS-2: Compliant Stablecoin (7 tests)
+    SSS-3: Private Stablecoin — Allowlist + CT (11 tests)
+    Authority Transfer (7 tests)
+    Supply Cap & Minter Quotas (10 tests)
+    Roles Edge Cases (16 tests)
+    Role Escalation & Access Control (13 tests)
+    Burn Edge Cases (6 tests)
+    Pause/Unpause Edge Cases (7 tests)
+    Freeze/Thaw Edge Cases (5 tests)
+    Supply Cap Edge Cases (4 tests)
+    Blacklist Edge Cases (7 tests)
+    Authority Transfer Edge Cases (6 tests)
+    Allowlist Edge Cases (6 tests)
+    Initialization Edge Cases (6 tests)
+    Minter Quota Edge Cases (5 tests)
+    Combined Compliance Scenarios (3 tests)
+    CLI Smoke Tests (13 tests)
 
-  58 passing
+  SDK Unit Tests (24 tests)
+  Backend API Tests (24 tests)
+  Docker Smoke Tests (6 tests)
+  Trident Fuzz Flows (17 flows)
+
+  134 anchor + 13 CLI + 24 SDK + 24 backend + 6 docker + 17 fuzz = 218+
 ```
 
 ### Test Environment Matrix
 
 | Command | Environment | What it tests | Why that environment |
 |---------|-------------|---------------|---------------------|
-| `anchor test` | Local validator | Core program logic (58 tests) | Deterministic, no network dependency |
+| `anchor test` | Local validator | Core program logic (134 tests) | Deterministic, no network dependency |
 | `yarn test:sdk` | Local/unit | SDK TypeScript modules | Pure unit tests |
-| `yarn test:ct` | Localnet (custom validator) | SSS-3 confidential transfer flow | Requires Token-2022 v10 with `zk-ops` |
+| `yarn test:ct` | Localnet (custom validator) | SSS-3 confidential transfer flow (standalone) | Requires Token-2022 v10 with `zk-ops` |
+| `yarn test:ct:e2e` | Localnet (custom validator) | **End-to-end CT on SSS-3 program mint** (14/14) | Proves v6 CPI → v10 CT compatibility |
 | `yarn test:oracle:devnet` | **Devnet** | Oracle price enforcement (4 tests) | Pyth price feeds are live external accounts — cloned accounts on local validator go stale immediately |
+| `yarn test:cli` | **Devnet** | CLI smoke tests (13 tests) | Verifies CLI commands work against live stablecoins |
 | `yarn --cwd backend test` | Local | Backend API endpoints | No chain dependency |
 
 ### Run Tests
@@ -353,14 +397,20 @@ Phase 1 runs `anchor test` to verify our SSS-3 program initializes the `Confiden
 # Core program tests (local validator, deterministic)
 anchor test
 
-# SSS-3 confidential transfer full flow (localnet, builds Token-2022 v10.0.0)
+# SSS-3 confidential transfer (standalone mint)
 yarn test:ct
+
+# End-to-end CT on SSS-3 program mint (14/14 checks — the key proof)
+yarn test:ct:e2e
 
 # Oracle integration (devnet — requires live Pyth price feeds)
 yarn test:oracle:devnet
 
 # SDK unit tests
 cd sdk/core && yarn test
+
+# CLI smoke tests (devnet)
+yarn test:cli
 
 # Backend API tests
 cd backend && yarn test

@@ -22,6 +22,7 @@ import Roles from "./pages/Roles";
 import Allowlist from "./pages/Allowlist";
 import Authority from "./pages/Authority";
 import MinterQuotas from "./pages/MinterQuotas";
+import Metadata from "./pages/Metadata";
 import AuditLog from "./pages/AuditLog";
 
 export default function App() {
@@ -79,6 +80,10 @@ export default function App() {
                   <Route
                     path="/authority"
                     element={<Authority mintAddress={mintAddress} />}
+                  />
+                  <Route
+                    path="/metadata"
+                    element={<Metadata mintAddress={mintAddress} />}
                   />
                   <Route
                     path="/minter-quotas"

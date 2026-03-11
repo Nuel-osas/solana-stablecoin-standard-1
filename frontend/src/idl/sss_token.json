@@ -1941,6 +1941,80 @@
       "args": []
     },
     {
+      "name": "update_metadata",
+      "docs": [
+        "Update the stablecoin's metadata URI. Only master authority.",
+        "Name and symbol are immutable after initialization to prevent",
+        "ticker confusion for wallets, explorers, and holders."
+      ],
+      "discriminator": [
+        170,
+        182,
+        43,
+        239,
+        97,
+        78,
+        225,
+        186
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "stablecoin"
+          ]
+        },
+        {
+          "name": "mint",
+          "docs": [
+            "The mint account (Token-2022) — metadata is stored on the mint itself"
+          ],
+          "writable": true,
+          "relations": [
+            "stablecoin"
+          ]
+        },
+        {
+          "name": "stablecoin",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  116,
+                  97,
+                  98,
+                  108,
+                  101,
+                  99,
+                  111,
+                  105,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program"
+        }
+      ],
+      "args": [
+        {
+          "name": "uri",
+          "type": "string"
+        }
+      ]
+    },
+    {
       "name": "update_minter_quota",
       "docs": [
         "Update minter quota. Caller must be master authority."
