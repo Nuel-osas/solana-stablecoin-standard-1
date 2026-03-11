@@ -20,6 +20,16 @@ pub fn handler(ctx: Context<BurnTokens>, amount: u64) -> Result<()> {
         SSSError::Unauthorized
     );
 
+    // Oracle price enforcement: if oracle_config is provided and enabled, validate price
+    let clock = Clock::get()?;
+    if let Some(oracle_config) = &ctx.accounts.oracle_config {
+        if oracle_config.enabled {
+            let price_feed_account = ctx.accounts.price_feed.as_ref()
+                .ok_or(error!(SSSError::InvalidOracleFeed))?;
+            super::oracle::validate_oracle_price(oracle_config, &price_feed_account.to_account_info(), clock.unix_timestamp)?;
+        }
+    }
+
     // Burn tokens
     token_2022::burn(
         CpiContext::new(
@@ -41,7 +51,7 @@ pub fn handler(ctx: Context<BurnTokens>, amount: u64) -> Result<()> {
         mint: ctx.accounts.mint.key(),
         amount,
         burner: ctx.accounts.burner.key(),
-        timestamp: Clock::get()?.unix_timestamp,
+        timestamp: clock.unix_timestamp,
     });
 
     Ok(())
@@ -79,4 +89,15 @@ pub struct BurnTokens<'info> {
     pub burn_from: InterfaceAccount<'info, TokenAccount>,
 
     pub token_program: Interface<'info, TokenInterface>,
+
+    /// Optional: Oracle config PDA — if provided and enabled, price is validated
+    #[account(
+        seeds = [ORACLE_CONFIG_SEED, stablecoin.key().as_ref()],
+        bump = oracle_config.bump,
+    )]
+    pub oracle_config: Option<Account<'info, OracleConfig>>,
+
+    /// Optional: Pyth price feed account — required if oracle_config is provided
+    /// CHECK: Validated inside validate_oracle_price against oracle_config.price_feed
+    pub price_feed: Option<UncheckedAccount<'info>>,
 }
