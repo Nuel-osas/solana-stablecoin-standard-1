@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
-import { PublicKey, SystemProgram } from "@solana/web3.js";
+import { PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
 import {
   getAssociatedTokenAddressSync,
+  createAssociatedTokenAccountInstruction,
   TOKEN_2022_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
 import toast from "react-hot-toast";
@@ -13,6 +15,7 @@ import {
   deriveRoleAssignmentPDA,
   deriveMinterInfoPDA,
 } from "../utils/pda";
+import { parseError } from "../utils/errors";
 
 interface Props {
   mintAddress: string;
@@ -45,14 +48,39 @@ export default function MintBurn({ mintAddress }: Props) {
       const [stablecoinPDA] = deriveStablecoinPDA(mint);
       const [roleAssignment] = deriveRoleAssignmentPDA(stablecoinPDA, "minter", publicKey);
       const [minterInfo] = deriveMinterInfoPDA(stablecoinPDA, publicKey);
+
+      // Check if wallet has minter role
+      const roleInfo = await connection.getAccountInfo(roleAssignment);
+      if (!roleInfo) {
+        toast.error("You don't have the Minter role. Ask the authority to assign it via the Roles page.");
+        return;
+      }
+
       const recipientATA = getAssociatedTokenAddressSync(
         mint,
         recipient,
         false,
-        TOKEN_2022_PROGRAM_ID
+        TOKEN_2022_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID,
       );
 
-      const tx = await (program.methods as any)
+      // Build transaction — create ATA if it doesn't exist
+      const tx = new Transaction();
+      const ataInfo = await connection.getAccountInfo(recipientATA);
+      if (!ataInfo) {
+        tx.add(
+          createAssociatedTokenAccountInstruction(
+            publicKey,
+            recipientATA,
+            recipient,
+            mint,
+            TOKEN_2022_PROGRAM_ID,
+            ASSOCIATED_TOKEN_PROGRAM_ID,
+          )
+        );
+      }
+
+      const mintIx = await (program.methods as any)
         .mintTokens(amount)
         .accounts({
           minter: publicKey,
@@ -64,6 +92,7 @@ export default function MintBurn({ mintAddress }: Props) {
           tokenProgram: TOKEN_2022_PROGRAM_ID,
         })
         .transaction();
+      tx.add(...mintIx.instructions);
 
       const sig = await sendTransaction(tx, connection);
       await connection.confirmTransaction(sig, "confirmed");
@@ -72,7 +101,7 @@ export default function MintBurn({ mintAddress }: Props) {
       setMintRecipient("");
       refetch();
     } catch (err: any) {
-      toast.error(err.message || "Mint failed");
+      toast.error(parseError(err));
     } finally {
       setMinting(false);
     }
@@ -88,6 +117,14 @@ export default function MintBurn({ mintAddress }: Props) {
 
       const [stablecoinPDA] = deriveStablecoinPDA(mint);
       const [roleAssignment] = deriveRoleAssignmentPDA(stablecoinPDA, "burner", publicKey);
+
+      // Check if wallet has burner role
+      const roleInfo = await connection.getAccountInfo(roleAssignment);
+      if (!roleInfo) {
+        toast.error("You don't have the Burner role. Ask the authority to assign it via the Roles page.");
+        return;
+      }
+
       const burnFrom = getAssociatedTokenAddressSync(
         mint,
         publicKey,
@@ -113,7 +150,7 @@ export default function MintBurn({ mintAddress }: Props) {
       setBurnAmount("");
       refetch();
     } catch (err: any) {
-      toast.error(err.message || "Burn failed");
+      toast.error(parseError(err));
     } finally {
       setBurning(false);
     }

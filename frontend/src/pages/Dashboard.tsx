@@ -124,6 +124,11 @@ export default function Dashboard({ mintAddress }: Props) {
             Allowlist Enabled
           </span>
         )}
+        {state.enableAllowlist && (
+          <span className="px-3 py-1 text-xs rounded-full bg-pink-900/40 text-pink-400 border border-pink-800/50">
+            Confidential Transfer (Experimental)
+          </span>
+        )}
       </div>
 
       {/* Supply cards */}
@@ -150,6 +155,7 @@ export default function Dashboard({ mintAddress }: Props) {
           <DetailRow label="Permanent Delegate" value={state.enablePermanentDelegate ? "Enabled" : "Disabled"} />
           <DetailRow label="Transfer Hook" value={state.enableTransferHook ? "Enabled" : "Disabled"} />
           <DetailRow label="Allowlist" value={state.enableAllowlist ? "Enabled" : "Disabled"} />
+          <DetailRow label="Confidential Transfer" value={state.enableAllowlist ? "Enabled (Experimental)" : "N/A"} />
         </div>
       </div>
     </div>

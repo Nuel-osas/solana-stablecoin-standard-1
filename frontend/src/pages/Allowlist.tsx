@@ -3,6 +3,7 @@ import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import toast from "react-hot-toast";
 import { useStablecoin } from "../hooks/useStablecoin";
+import { parseError } from "../utils/errors";
 import {
   deriveStablecoinPDA,
   deriveAllowlistEntryPDA,
@@ -56,6 +57,12 @@ export default function Allowlist({ mintAddress }: Props) {
       const [stablecoinPDA] = deriveStablecoinPDA(mint);
       const [allowlistEntry] = deriveAllowlistEntryPDA(stablecoinPDA, address);
 
+      // Only the authority can manage the allowlist
+      if (!state || !state.authority.equals(publicKey)) {
+        toast.error("Only the master authority can manage the allowlist.");
+        return;
+      }
+
       const tx = await (program.methods as any)
         .addToAllowlist(address)
         .accounts({
@@ -71,7 +78,7 @@ export default function Allowlist({ mintAddress }: Props) {
       toast.success(`Address added to allowlist! Tx: ${sig.slice(0, 8)}...`);
       setAddAddress("");
     } catch (err: any) {
-      toast.error(err.message || "Failed to add to allowlist");
+      toast.error(parseError(err));
     } finally {
       setAdding(false);
     }
@@ -85,6 +92,12 @@ export default function Allowlist({ mintAddress }: Props) {
       const address = new PublicKey(removeAddress);
       const [stablecoinPDA] = deriveStablecoinPDA(mint);
       const [allowlistEntry] = deriveAllowlistEntryPDA(stablecoinPDA, address);
+
+      // Only the authority can manage the allowlist
+      if (!state || !state.authority.equals(publicKey)) {
+        toast.error("Only the master authority can manage the allowlist.");
+        return;
+      }
 
       const tx = await (program.methods as any)
         .removeFromAllowlistEntry(address)
@@ -100,7 +113,7 @@ export default function Allowlist({ mintAddress }: Props) {
       toast.success(`Address removed from allowlist! Tx: ${sig.slice(0, 8)}...`);
       setRemoveAddress("");
     } catch (err: any) {
-      toast.error(err.message || "Failed to remove from allowlist");
+      toast.error(parseError(err));
     } finally {
       setRemoving(false);
     }

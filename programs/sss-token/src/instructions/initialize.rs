@@ -29,6 +29,10 @@ pub fn handler(ctx: Context<Initialize>, config: StablecoinInitConfig) -> Result
         // Default account state extension to freeze new accounts
         extensions.push(ExtensionType::DefaultAccountState);
     }
+    if config.enable_allowlist {
+        // Confidential transfer extension for SSS-3 (experimental PoC)
+        extensions.push(ExtensionType::ConfidentialTransferMint);
+    }
 
     // Calculate space needed for mint with extensions (without metadata content)
     let space = ExtensionType::try_calculate_account_len::<MintState>(&extensions)?;
@@ -104,6 +108,21 @@ pub fn handler(ctx: Context<Initialize>, config: StablecoinInitConfig) -> Result
             ctx.accounts.token_program.key,
             &ctx.accounts.mint.key(),
             &spl_token_2022::state::AccountState::Frozen,
+        )?;
+        anchor_lang::solana_program::program::invoke(
+            &ix,
+            &[ctx.accounts.mint.to_account_info()],
+        )?;
+    }
+
+    // Initialize confidential transfer mint extension for SSS-3 (experimental PoC)
+    if config.enable_allowlist {
+        let ix = spl_token_2022::extension::confidential_transfer::instruction::initialize_mint(
+            ctx.accounts.token_program.key,
+            &ctx.accounts.mint.key(),
+            Some(ctx.accounts.authority.key()), // CT authority
+            true,                                // auto-approve new accounts
+            None,                                // no auditor ElGamal pubkey (PoC)
         )?;
         anchor_lang::solana_program::program::invoke(
             &ix,

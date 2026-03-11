@@ -4,6 +4,7 @@ import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import toast from "react-hot-toast";
 import { useStablecoin } from "../hooks/useStablecoin";
+import { parseError } from "../utils/errors";
 import {
   deriveStablecoinPDA,
   deriveRoleAssignmentPDA,
@@ -47,8 +48,16 @@ export default function Blacklist({ mintAddress }: Props) {
       const [roleAssignment] = deriveRoleAssignmentPDA(stablecoinPDA, "blacklister", publicKey);
       const [blacklistEntry] = deriveBlacklistEntryPDA(stablecoinPDA, address);
 
-      // Try with role assignment first; if caller is authority, pass null
       const isAuthority = state.authority.equals(publicKey);
+
+      // Check if wallet has blacklister role or is authority
+      if (!isAuthority) {
+        const roleInfo = await connection.getAccountInfo(roleAssignment);
+        if (!roleInfo) {
+          toast.error("You don't have the Blacklister role. Ask the authority to assign it via the Roles page.");
+          return;
+        }
+      }
 
       const tx = await (program.methods as any)
         .addToBlacklist(address, addReason)
@@ -67,7 +76,7 @@ export default function Blacklist({ mintAddress }: Props) {
       setAddAddress("");
       setAddReason("");
     } catch (err: any) {
-      toast.error(err.message || "Failed to add to blacklist");
+      toast.error(parseError(err));
     } finally {
       setAdding(false);
     }
@@ -85,6 +94,15 @@ export default function Blacklist({ mintAddress }: Props) {
 
       const isAuthority = state.authority.equals(publicKey);
 
+      // Check if wallet has blacklister role or is authority
+      if (!isAuthority) {
+        const roleInfo = await connection.getAccountInfo(roleAssignment);
+        if (!roleInfo) {
+          toast.error("You don't have the Blacklister role. Ask the authority to assign it via the Roles page.");
+          return;
+        }
+      }
+
       const tx = await (program.methods as any)
         .removeFromBlacklist(address)
         .accounts({
@@ -100,7 +118,7 @@ export default function Blacklist({ mintAddress }: Props) {
       toast.success(`Address removed from blacklist! Tx: ${sig.slice(0, 8)}...`);
       setRemoveAddress("");
     } catch (err: any) {
-      toast.error(err.message || "Failed to remove from blacklist");
+      toast.error(parseError(err));
     } finally {
       setRemoving(false);
     }

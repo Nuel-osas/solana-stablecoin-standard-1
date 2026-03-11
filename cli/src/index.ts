@@ -1,6 +1,35 @@
 #!/usr/bin/env node
+process.removeAllListeners("warning");
 
 import { Command } from "commander";
+
+// ANSI colors
+const c = {
+  reset: "\x1b[0m",
+  bold: "\x1b[1m",
+  dim: "\x1b[2m",
+  green: "\x1b[32m",
+  red: "\x1b[31m",
+  yellow: "\x1b[33m",
+  cyan: "\x1b[36m",
+  magenta: "\x1b[35m",
+  white: "\x1b[37m",
+  bg: {
+    green: "\x1b[42m",
+    red: "\x1b[41m",
+  },
+};
+
+function detectPreset(s: any): string {
+  if (s.enableAllowlist) return "SSS-3 (Private)";
+  if (s.enablePermanentDelegate || s.enableTransferHook) return "SSS-2 (Compliant)";
+  return "SSS-1 (Minimal)";
+}
+
+function formatAmount(raw: string | number, decimals: number): string {
+  const n = Number(raw) / Math.pow(10, decimals);
+  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: decimals });
+}
 import {
   Connection,
   Keypair,
@@ -158,10 +187,10 @@ initCmd
       const mintKeypair = Keypair.generate();
       const [stablecoinPDA] = getStablecoinPDA(mintKeypair.publicKey);
 
-      console.log(`\nInitializing SSS-1 stablecoin: ${opts.name} (${opts.symbol})`);
-      console.log(`  Cluster: ${opts.cluster}`);
-      console.log(`  Authority: ${authority.publicKey.toBase58()}`);
-      console.log(`  Mint: ${mintKeypair.publicKey.toBase58()}`);
+      console.log(`\n${c.cyan}${c.bold}Initializing SSS-1 stablecoin${c.reset}: ${opts.name} (${opts.symbol})`);
+      console.log(`  ${c.dim}Cluster:${c.reset}   ${opts.cluster}`);
+      console.log(`  ${c.dim}Authority:${c.reset} ${authority.publicKey.toBase58()}`);
+      console.log(`  ${c.dim}Mint:${c.reset}      ${mintKeypair.publicKey.toBase58()}`);
       console.log(`  Stablecoin PDA: ${stablecoinPDA.toBase58()}`);
 
       const tx = await program.methods
@@ -188,10 +217,10 @@ initCmd
         .signers([mintKeypair])
         .rpc();
 
-      console.log(`\n  Stablecoin initialized successfully!`);
-      console.log(`  Transaction: ${tx}`);
-      console.log(`\n  Save these values for subsequent commands:`);
-      console.log(`    --mint ${mintKeypair.publicKey.toBase58()}`);
+      console.log(`\n  ${c.green}${c.bold}Stablecoin initialized successfully!${c.reset}`);
+      console.log(`  ${c.dim}Transaction:${c.reset} ${tx}`);
+      console.log(`\n  ${c.yellow}Save this for subsequent commands:${c.reset}`);
+      console.log(`    --mint ${c.bold}${mintKeypair.publicKey.toBase58()}${c.reset}`);
     } catch (err: any) {
       console.error(`\nError initializing SSS-1 stablecoin: ${err.message}`);
       process.exit(1);
@@ -215,10 +244,10 @@ initCmd
       const mintKeypair = Keypair.generate();
       const [stablecoinPDA] = getStablecoinPDA(mintKeypair.publicKey);
 
-      console.log(`\nInitializing SSS-2 stablecoin: ${opts.name} (${opts.symbol})`);
-      console.log(`  Cluster: ${opts.cluster}`);
-      console.log(`  Authority: ${authority.publicKey.toBase58()}`);
-      console.log(`  Mint: ${mintKeypair.publicKey.toBase58()}`);
+      console.log(`\n${c.cyan}${c.bold}Initializing SSS-2 stablecoin${c.reset}: ${opts.name} (${opts.symbol})`);
+      console.log(`  ${c.dim}Cluster:${c.reset}   ${opts.cluster}`);
+      console.log(`  ${c.dim}Authority:${c.reset} ${authority.publicKey.toBase58()}`);
+      console.log(`  ${c.dim}Mint:${c.reset}      ${mintKeypair.publicKey.toBase58()}`);
       console.log(`  Stablecoin PDA: ${stablecoinPDA.toBase58()}`);
 
       const tx = await program.methods
@@ -245,10 +274,10 @@ initCmd
         .signers([mintKeypair])
         .rpc();
 
-      console.log(`\n  Stablecoin initialized successfully!`);
-      console.log(`  Transaction: ${tx}`);
-      console.log(`\n  Save these values for subsequent commands:`);
-      console.log(`    --mint ${mintKeypair.publicKey.toBase58()}`);
+      console.log(`\n  ${c.green}${c.bold}Stablecoin initialized successfully!${c.reset}`);
+      console.log(`  ${c.dim}Transaction:${c.reset} ${tx}`);
+      console.log(`\n  ${c.yellow}Save this for subsequent commands:${c.reset}`);
+      console.log(`    --mint ${c.bold}${mintKeypair.publicKey.toBase58()}${c.reset}`);
     } catch (err: any) {
       console.error(`\nError initializing SSS-2 stablecoin: ${err.message}`);
       process.exit(1);
@@ -272,10 +301,10 @@ initCmd
       const mintKeypair = Keypair.generate();
       const [stablecoinPDA] = getStablecoinPDA(mintKeypair.publicKey);
 
-      console.log(`\nInitializing SSS-3 stablecoin: ${opts.name} (${opts.symbol})`);
-      console.log(`  Cluster: ${opts.cluster}`);
-      console.log(`  Authority: ${authority.publicKey.toBase58()}`);
-      console.log(`  Mint: ${mintKeypair.publicKey.toBase58()}`);
+      console.log(`\n${c.cyan}${c.bold}Initializing SSS-3 stablecoin${c.reset}: ${opts.name} (${opts.symbol})`);
+      console.log(`  ${c.dim}Cluster:${c.reset}   ${opts.cluster}`);
+      console.log(`  ${c.dim}Authority:${c.reset} ${authority.publicKey.toBase58()}`);
+      console.log(`  ${c.dim}Mint:${c.reset}      ${mintKeypair.publicKey.toBase58()}`);
       console.log(`  Stablecoin PDA: ${stablecoinPDA.toBase58()}`);
 
       const tx = await program.methods
@@ -304,6 +333,8 @@ initCmd
 
       console.log(`\n  Stablecoin initialized successfully!`);
       console.log(`  Transaction: ${tx}`);
+      console.log(`  ${c.magenta}ConfidentialTransferMint:${c.reset} Enabled (Experimental)`);
+      console.log(`  ${c.dim}Note: Full confidential transfers require ZK ElGamal program (not yet live on devnet/mainnet)${c.reset}`);
       console.log(`\n  Save these values for subsequent commands:`);
       console.log(`    --mint ${mintKeypair.publicKey.toBase58()}`);
     } catch (err: any) {
@@ -358,10 +389,10 @@ initCmd
         .signers([mintKeypair])
         .rpc();
 
-      console.log(`\n  Stablecoin initialized successfully!`);
-      console.log(`  Transaction: ${tx}`);
-      console.log(`\n  Save these values for subsequent commands:`);
-      console.log(`    --mint ${mintKeypair.publicKey.toBase58()}`);
+      console.log(`\n  ${c.green}${c.bold}Stablecoin initialized successfully!${c.reset}`);
+      console.log(`  ${c.dim}Transaction:${c.reset} ${tx}`);
+      console.log(`\n  ${c.yellow}Save this for subsequent commands:${c.reset}`);
+      console.log(`    --mint ${c.bold}${mintKeypair.publicKey.toBase58()}${c.reset}`);
     } catch (err: any) {
       console.error(`\nError initializing custom stablecoin: ${err.message}`);
       process.exit(1);
@@ -649,32 +680,58 @@ cli
       const mint = requireMint(opts);
       const [stablecoinPDA] = getStablecoinPDA(mint);
 
-      console.log(`\nFetching stablecoin status...`);
+      console.log(`\n${c.cyan}Fetching stablecoin status...${c.reset}`);
       console.log(`  Mint: ${mint.toBase58()}`);
       console.log(`  Stablecoin PDA: ${stablecoinPDA.toBase58()}`);
 
       const stablecoin = await (program.account as any).stablecoin.fetch(stablecoinPDA);
 
-      console.log(`\n  === Stablecoin Status ===`);
-      console.log(`  Name: ${stablecoin.name}`);
-      console.log(`  Symbol: ${stablecoin.symbol}`);
-      console.log(`  URI: ${stablecoin.uri}`);
-      console.log(`  Decimals: ${stablecoin.decimals}`);
-      console.log(`  Authority: ${stablecoin.authority.toBase58()}`);
-      console.log(`  Mint: ${stablecoin.mint.toBase58()}`);
-      console.log(`  Paused: ${stablecoin.paused}`);
-      console.log(`  Permanent Delegate: ${stablecoin.enablePermanentDelegate}`);
-      console.log(`  Transfer Hook: ${stablecoin.enableTransferHook}`);
-      console.log(`  Default Account Frozen: ${stablecoin.defaultAccountFrozen}`);
-      console.log(`  Allowlist Enabled: ${stablecoin.enableAllowlist}`);
-      console.log(`  Total Minted: ${stablecoin.totalMinted.toString()}`);
-      console.log(`  Total Burned: ${stablecoin.totalBurned.toString()}`);
-      const cap = stablecoin.supplyCap?.toString() ?? "0";
-      console.log(`  Supply Cap: ${cap === "0" ? "unlimited" : cap}`);
+      const preset = detectPreset(stablecoin);
+      const dec = stablecoin.decimals;
+      const totalMinted = formatAmount(stablecoin.totalMinted.toString(), dec);
+      const totalBurned = formatAmount(stablecoin.totalBurned.toString(), dec);
+      const capRaw = stablecoin.supplyCap?.toString() ?? "0";
+      const supplyCap = capRaw === "0" ? "Unlimited" : formatAmount(capRaw, dec);
+      const netSupply = formatAmount(
+        (Number(stablecoin.totalMinted.toString()) - Number(stablecoin.totalBurned.toString())).toString(),
+        dec
+      );
+
+      const on = `${c.green}${c.bold}Enabled${c.reset}`;
+      const off = `${c.dim}Disabled${c.reset}`;
+      const pauseLabel = stablecoin.paused
+        ? `${c.bg.red}${c.white}${c.bold} PAUSED ${c.reset}`
+        : `${c.bg.green}${c.white}${c.bold} ACTIVE ${c.reset}`;
+
+      console.log(`\n  ${c.bold}${c.cyan}═══ ${stablecoin.name} (${stablecoin.symbol}) ═══${c.reset}`);
+      console.log(`  ${c.dim}Preset:${c.reset}    ${c.yellow}${preset}${c.reset}`);
+      console.log(`  ${c.dim}Status:${c.reset}    ${pauseLabel}`);
+      console.log();
+      console.log(`  ${c.dim}Authority:${c.reset} ${stablecoin.authority.toBase58()}`);
+      console.log(`  ${c.dim}Mint:${c.reset}      ${stablecoin.mint.toBase58()}`);
+      console.log(`  ${c.dim}Decimals:${c.reset}  ${stablecoin.decimals}`);
+      if (stablecoin.uri) console.log(`  ${c.dim}URI:${c.reset}       ${stablecoin.uri}`);
+      console.log();
+      console.log(`  ${c.bold}Supply${c.reset}`);
+      console.log(`  ${c.dim}Current:${c.reset}   ${c.white}${netSupply}${c.reset} ${stablecoin.symbol}`);
+      console.log(`  ${c.dim}Minted:${c.reset}    ${c.green}${totalMinted}${c.reset}`);
+      console.log(`  ${c.dim}Burned:${c.reset}    ${c.red}${totalBurned}${c.reset}`);
+      console.log(`  ${c.dim}Cap:${c.reset}       ${supplyCap}`);
+      console.log();
+      console.log(`  ${c.bold}Extensions${c.reset}`);
+      console.log(`  ${c.dim}Permanent Delegate:${c.reset}     ${stablecoin.enablePermanentDelegate ? on : off}`);
+      console.log(`  ${c.dim}Transfer Hook:${c.reset}          ${stablecoin.enableTransferHook ? on : off}`);
+      console.log(`  ${c.dim}Default Account Frozen:${c.reset} ${stablecoin.defaultAccountFrozen ? on : off}`);
+      console.log(`  ${c.dim}Allowlist:${c.reset}              ${stablecoin.enableAllowlist ? on : off}`);
+      if (stablecoin.enableAllowlist) {
+        console.log(`  ${c.dim}Confidential Transfer:${c.reset}  ${c.magenta}Enabled (Experimental)${c.reset}`);
+      }
       const pending = stablecoin.pendingAuthority?.toBase58();
       if (pending && pending !== PublicKey.default.toBase58()) {
-        console.log(`  Pending Authority: ${pending}`);
+        console.log();
+        console.log(`  ${c.yellow}Pending Authority:${c.reset} ${pending}`);
       }
+      console.log();
     } catch (err: any) {
       console.error(`\nError fetching status: ${err.message}`);
       process.exit(1);

@@ -6,6 +6,9 @@ import {
   getAssociatedTokenAddressSync,
   createAssociatedTokenAccountInstruction,
   ASSOCIATED_TOKEN_PROGRAM_ID,
+  getMint,
+  getExtensionTypes,
+  ExtensionType,
 } from "@solana/spl-token";
 import { expect } from "chai";
 import BN from "bn.js";
@@ -113,6 +116,18 @@ describe("SSS-3: Private Stablecoin (Allowlist)", () => {
     expect(stablecoin.enableTransferHook).to.be.true;
     expect(stablecoin.enableAllowlist).to.be.true;
     expect(stablecoin.paused).to.be.false;
+  });
+
+  it("SSS-3 mint has ConfidentialTransferMint extension", async () => {
+    const mintInfo = await getMint(
+      provider.connection,
+      mintKeypair.publicKey,
+      "confirmed",
+      TOKEN_2022_PROGRAM_ID
+    );
+    const extensions = getExtensionTypes(mintInfo.tlvData);
+    expect(extensions).to.include(ExtensionType.ConfidentialTransferMint);
+    console.log("  ConfidentialTransferMint extension verified on SSS-3 mint");
   });
 
   it("adds address to allowlist", async () => {

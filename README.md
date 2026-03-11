@@ -37,7 +37,7 @@ Both programs are live on Solana Devnet:
 |----------|------|-------------|
 | **SSS-1** | Minimal Stablecoin | Mint authority + freeze authority + metadata. What's needed on every stable, nothing more. |
 | **SSS-2** | Compliant Stablecoin | SSS-1 + permanent delegate + transfer hook + blacklist enforcement. USDC/USDT-class compliance. |
-| **SSS-3** | Private Stablecoin | SSS-2 + allowlist-gated transfers. Only pre-approved addresses can send/receive. For institutional, permissioned, or jurisdiction-restricted tokens. |
+| **SSS-3** | Private Stablecoin | SSS-2 + allowlist-gated transfers + confidential transfer extension (experimental). Only pre-approved addresses can send/receive. ZK-encrypted balances ready for when Solana enables the ZK ElGamal program. |
 
 ## Quick Start
 
@@ -188,7 +188,7 @@ solana-stablecoin-standard/
 │   └── core/                    # TypeScript SDK (@stbr/sss-token)
 ├── cli/                         # Admin CLI (sss-token)
 ├── backend/                     # Backend services (Docker)
-├── tests/                       # 57 integration tests
+├── tests/                       # 58 integration tests
 │   ├── sss-1.ts                 # SSS-1 tests (7)
 │   ├── sss-2.ts                 # SSS-2 compliance tests (7)
 │   ├── sss-3.ts                 # SSS-3 allowlist tests (10)
@@ -236,20 +236,43 @@ Master authority can also perform any role's action directly without needing a r
 | Permanent Delegate | | Yes | Yes | Token seizure |
 | Transfer Hook | | Yes | Yes | Blacklist + allowlist enforcement on every transfer |
 | Default Account State | | Optional | Optional | Freeze new accounts by default |
+| ConfidentialTransferMint | | | Yes | ZK-encrypted balances (experimental PoC) |
+
+## SSS-3 Confidential Transfer (Experimental)
+
+SSS-3 initializes the `ConfidentialTransferMint` extension on the mint, enabling the token for future ZK-encrypted confidential transfers. This is a proof-of-concept — the full confidential transfer flow is blocked by tooling immaturity.
+
+### What works today
+
+| Step | Status | Notes |
+|------|--------|-------|
+| ConfidentialTransferMint init on mint | Working | Extension verified in test suite |
+| Token account creation | Working | Standard Token-2022 accounts |
+| Account CT configuration (ElGamal keys) | Working | `configure-confidential-transfer-account` succeeds on localnet |
+| Deposit into confidential balance | Blocked | `spl-token` CLI v5.5.0 sends instruction data incompatible with on-chain Token-2022 program |
+| Confidential transfer | Blocked | Depends on deposit working first |
+| ZK ElGamal Proof program | Available on localnet | Native program present in Solana 3.1.10 test validator |
+| ZK ElGamal Proof program (devnet/mainnet) | Disabled | Undergoing security audit |
+
+### Why it's blocked
+
+The Token-2022 program (both localnet and mainnet) is compiled **without the `zk-ops` Rust feature flag**. In `spl-token-2022` v6.0.0, all CT operations (deposit, withdraw, transfer) are gated by `#[cfg(feature = "zk-ops")]` — when disabled, the program unconditionally returns `InvalidInstructionData`. No client-side workaround exists (we verified with the CLI, `@solana-program/token-2022` instruction builders, and manual TypeScript construction). The fix requires Solana to ship a Token-2022 build with `zk-ops` enabled.
+
+For full details, see [`docs/SSS-3.md`](docs/SSS-3.md).
 
 ## Testing
 
-57 integration tests across 6 test suites, all passing:
+58 integration tests across 6 test suites, all passing:
 
 ```
   SSS-1: Minimal Stablecoin (7 tests)
   SSS-2: Compliant Stablecoin (7 tests)
-  SSS-3: Private Stablecoin — Allowlist (10 tests)
+  SSS-3: Private Stablecoin — Allowlist + Confidential Transfer (11 tests)
   Authority Transfer (7 tests)
   Supply Cap & Minter Quotas (10 tests)
   Roles Edge Cases (16 tests)
 
-  57 passing
+  58 passing
 ```
 
 ### Run Tests
