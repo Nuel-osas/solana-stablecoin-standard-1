@@ -2081,6 +2081,8 @@ describe("Combined Compliance Scenarios", () => {
 
     let role = await program.account.roleAssignment.fetch(rolePDA);
     expect(role.active).to.be.true;
+    expect(role.grantedBy.toBase58()).to.equal(authority.publicKey.toBase58());
+    expect(Number(role.grantedAt)).to.be.greaterThan(0);
 
     // Revoke
     await program.methods

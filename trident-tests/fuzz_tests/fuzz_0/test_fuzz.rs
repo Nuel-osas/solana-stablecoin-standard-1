@@ -192,7 +192,7 @@ impl FuzzTest {
     // -- Flows ---------------------------------------------------------------
 
     /// Master authority pauses the stablecoin — must succeed and flip the flag.
-    #[flow(weight = 25)]
+    #[flow(weight = 14)]
     fn fuzz_pause(&mut self) {
         let authority = self.fuzz_accounts.authorities.get(&mut self.trident).unwrap();
         let stablecoin = self.fuzz_accounts.stablecoins.get(&mut self.trident).unwrap();
@@ -219,7 +219,7 @@ impl FuzzTest {
     }
 
     /// Master authority unpauses the stablecoin — must succeed and clear the flag.
-    #[flow(weight = 25)]
+    #[flow(weight = 14)]
     fn fuzz_unpause(&mut self) {
         let authority = self.fuzz_accounts.authorities.get(&mut self.trident).unwrap();
         let stablecoin = self.fuzz_accounts.stablecoins.get(&mut self.trident).unwrap();
@@ -245,7 +245,7 @@ impl FuzzTest {
     }
 
     /// Non-authority attempts to pause — must always be rejected.
-    #[flow(weight = 15)]
+    #[flow(weight = 8)]
     fn fuzz_unauthorized_pause(&mut self) {
         let attacker = self.fuzz_accounts.operators.get(&mut self.trident).unwrap();
         let stablecoin = self.fuzz_accounts.stablecoins.get(&mut self.trident).unwrap();
@@ -273,7 +273,7 @@ impl FuzzTest {
     }
 
     /// Master authority transfers authority and we verify the on-chain update.
-    #[flow(weight = 10)]
+    #[flow(weight = 6)]
     fn fuzz_transfer_authority(&mut self) {
         let authority = self.fuzz_accounts.authorities.get(&mut self.trident).unwrap();
         let stablecoin = self.fuzz_accounts.stablecoins.get(&mut self.trident).unwrap();
@@ -314,7 +314,7 @@ impl FuzzTest {
     }
 
     /// Non-authority attempts to transfer authority — must always be rejected.
-    #[flow(weight = 15)]
+    #[flow(weight = 8)]
     fn fuzz_unauthorized_transfer(&mut self) {
         let attacker = self.fuzz_accounts.operators.get(&mut self.trident).unwrap();
         let stablecoin = self.fuzz_accounts.stablecoins.get(&mut self.trident).unwrap();
@@ -344,7 +344,7 @@ impl FuzzTest {
 
     /// Verify PDA derivation uniqueness: different roles for the same
     /// stablecoin + assignee produce distinct addresses.
-    #[flow(weight = 10)]
+    #[flow(weight = 6)]
     fn fuzz_pda_uniqueness(&mut self) {
         let stablecoin = self.fuzz_accounts.stablecoins.get(&mut self.trident).unwrap();
         let assignee = self.fuzz_accounts.authorities.get(&mut self.trident).unwrap();
@@ -376,7 +376,7 @@ impl FuzzTest {
     }
 
     /// Authority assigns a minter role — verify role PDA created with active=true.
-    #[flow(weight = 10)]
+    #[flow(weight = 6)]
     fn fuzz_assign_role(&mut self) {
         let authority = self.fuzz_accounts.authorities.get(&mut self.trident).unwrap();
         let stablecoin = self.fuzz_accounts.stablecoins.get(&mut self.trident).unwrap();
@@ -421,7 +421,7 @@ impl FuzzTest {
     }
 
     /// Authority revokes a role — verify role PDA has active=false.
-    #[flow(weight = 10)]
+    #[flow(weight = 6)]
     fn fuzz_revoke_role(&mut self) {
         let authority = self.fuzz_accounts.authorities.get(&mut self.trident).unwrap();
         let stablecoin = self.fuzz_accounts.stablecoins.get(&mut self.trident).unwrap();
@@ -461,7 +461,7 @@ impl FuzzTest {
     }
 
     /// Non-authority attempts to revoke a role — must fail, state unchanged.
-    #[flow(weight = 8)]
+    #[flow(weight = 4)]
     fn fuzz_unauthorized_revoke(&mut self) {
         let attacker = self.fuzz_accounts.operators.get(&mut self.trident).unwrap();
         let stablecoin = self.fuzz_accounts.stablecoins.get(&mut self.trident).unwrap();
@@ -499,7 +499,7 @@ impl FuzzTest {
     }
 
     /// Authority nominates a new pending authority — verify pending_authority set.
-    #[flow(weight = 8)]
+    #[flow(weight = 4)]
     fn fuzz_nominate_authority(&mut self) {
         let authority = self.fuzz_accounts.authorities.get(&mut self.trident).unwrap();
         let stablecoin = self.fuzz_accounts.stablecoins.get(&mut self.trident).unwrap();
@@ -539,7 +539,7 @@ impl FuzzTest {
     }
 
     /// Non-authority attempts to nominate — must fail.
-    #[flow(weight = 8)]
+    #[flow(weight = 4)]
     fn fuzz_unauthorized_nominate(&mut self) {
         let attacker = self.fuzz_accounts.operators.get(&mut self.trident).unwrap();
         let stablecoin = self.fuzz_accounts.stablecoins.get(&mut self.trident).unwrap();
@@ -568,7 +568,7 @@ impl FuzzTest {
     }
 
     /// Authority sets supply cap — verify updated.
-    #[flow(weight = 8)]
+    #[flow(weight = 4)]
     fn fuzz_set_supply_cap(&mut self) {
         let authority = self.fuzz_accounts.authorities.get(&mut self.trident).unwrap();
         let stablecoin = self.fuzz_accounts.stablecoins.get(&mut self.trident).unwrap();
@@ -605,7 +605,7 @@ impl FuzzTest {
     }
 
     /// Non-authority attempts to set supply cap — must fail.
-    #[flow(weight = 8)]
+    #[flow(weight = 4)]
     fn fuzz_unauthorized_supply_cap(&mut self) {
         let attacker = self.fuzz_accounts.operators.get(&mut self.trident).unwrap();
         let stablecoin = self.fuzz_accounts.stablecoins.get(&mut self.trident).unwrap();
@@ -634,7 +634,7 @@ impl FuzzTest {
     }
 
     /// Non-authority attempts to unpause — must fail, state unchanged.
-    #[flow(weight = 8)]
+    #[flow(weight = 4)]
     fn fuzz_unauthorized_unpause(&mut self) {
         let attacker = self.fuzz_accounts.operators.get(&mut self.trident).unwrap();
         let stablecoin = self.fuzz_accounts.stablecoins.get(&mut self.trident).unwrap();
@@ -662,7 +662,7 @@ impl FuzzTest {
     }
 
     /// Pausing twice should be idempotent — both calls succeed (or second is no-op).
-    #[flow(weight = 5)]
+    #[flow(weight = 3)]
     fn fuzz_pause_idempotent(&mut self) {
         let authority = self.fuzz_accounts.authorities.get(&mut self.trident).unwrap();
         let stablecoin = self.fuzz_accounts.stablecoins.get(&mut self.trident).unwrap();
@@ -690,7 +690,7 @@ impl FuzzTest {
     }
 
     /// Blacklist PDAs for the same wallet on different stablecoins must not collide.
-    #[flow(weight = 5)]
+    #[flow(weight = 3)]
     fn fuzz_blacklist_pda_isolation(&mut self) {
         let stablecoin = self.fuzz_accounts.stablecoins.get(&mut self.trident).unwrap();
         let wallet = self.trident.random_pubkey();
@@ -718,7 +718,7 @@ impl FuzzTest {
     }
 
     /// Same inputs must always produce the same role PDA (determinism check).
-    #[flow(weight = 5)]
+    #[flow(weight = 2)]
     fn fuzz_role_pda_deterministic(&mut self) {
         let stablecoin = self.fuzz_accounts.stablecoins.get(&mut self.trident).unwrap();
         let assignee = self.trident.random_pubkey();

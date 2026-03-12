@@ -348,10 +348,10 @@ The e2e test builds Token-2022 v10.0.0 from [source](https://github.com/solana-p
 
 ## Testing
 
-218+ tests across multiple test suites, all passing:
+219+ tests across multiple test suites, all passing:
 
 ```
-  Anchor Integration Tests (134 tests):
+  Anchor Integration Tests (136 tests):
     SSS-1: Minimal Stablecoin (7 tests)
     SSS-2: Compliant Stablecoin (7 tests)
     SSS-3: Private Stablecoin — Allowlist + CT (11 tests)
@@ -369,26 +369,25 @@ The e2e test builds Token-2022 v10.0.0 from [source](https://github.com/solana-p
     Initialization Edge Cases (6 tests)
     Minter Quota Edge Cases (5 tests)
     Combined Compliance Scenarios (3 tests)
-    CLI Smoke Tests (13 tests)
+    CLI Smoke Tests (12 tests)
 
   SDK Unit Tests (24 tests)
   Backend API Tests (24 tests)
   Docker Smoke Tests (6 tests)
   Trident Fuzz Flows (17 flows)
 
-  134 anchor + 13 CLI + 24 SDK + 24 backend + 6 docker + 17 fuzz = 218+
+  136 anchor + 12 CLI + 24 SDK + 24 backend + 6 docker + 17 fuzz = 219+
 ```
 
 ### Test Environment Matrix
 
 | Command | Environment | What it tests | Why that environment |
 |---------|-------------|---------------|---------------------|
-| `anchor test` | Local validator | Core program logic (134 tests) | Deterministic, no network dependency |
+| `anchor test` | Local validator | Core program logic (136 tests) | Deterministic, no network dependency |
 | `yarn test:sdk` | Local/unit | SDK TypeScript modules | Pure unit tests |
-| `yarn test:ct` | Localnet (custom validator) | SSS-3 confidential transfer flow (standalone) | Requires Token-2022 v10 with `zk-ops` |
-| `yarn test:ct:e2e` | Localnet (custom validator) | **End-to-end CT on SSS-3 program mint** (14/14) | Proves v6 CPI → v10 CT compatibility |
+| `yarn test:ct` | Localnet (custom validator) | **End-to-end CT on SSS-3 program mint** (14/14) | Requires Token-2022 v10 with `zk-ops` |
 | `yarn test:oracle:devnet` | **Devnet** | Oracle price enforcement (4 tests) | Pyth price feeds are live external accounts — cloned accounts on local validator go stale immediately |
-| `yarn test:cli` | **Devnet** | CLI smoke tests (13 tests) | Verifies CLI commands work against live stablecoins |
+| `yarn test:cli` | **Devnet** | CLI smoke tests (12 tests) | Verifies CLI commands work against live stablecoins |
 | `yarn --cwd backend test` | Local | Backend API endpoints | No chain dependency |
 
 ### Run Tests
@@ -397,11 +396,8 @@ The e2e test builds Token-2022 v10.0.0 from [source](https://github.com/solana-p
 # Core program tests (local validator, deterministic)
 anchor test
 
-# SSS-3 confidential transfer (standalone mint)
+# SSS-3 end-to-end confidential transfer (14/14 checks)
 yarn test:ct
-
-# End-to-end CT on SSS-3 program mint (14/14 checks — the key proof)
-yarn test:ct:e2e
 
 # Oracle integration (devnet — requires live Pyth price feeds)
 yarn test:oracle:devnet

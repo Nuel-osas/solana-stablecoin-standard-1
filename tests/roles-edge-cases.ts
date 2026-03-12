@@ -133,6 +133,8 @@ describe("Roles & Edge Cases", () => {
     const role = await program.account.roleAssignment.fetch(minterRolePDA);
     expect(role.active).to.be.true;
     expect(role.assignee.toBase58()).to.equal(minterKeypair.publicKey.toBase58());
+    expect(role.grantedBy.toBase58()).to.equal(authority.publicKey.toBase58());
+    expect(Number(role.grantedAt)).to.be.greaterThan(0);
   });
 
   it("revokes minter role", async () => {
