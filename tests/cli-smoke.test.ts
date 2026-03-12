@@ -3,7 +3,7 @@ import { execSync } from "child_process";
 
 const ROOT = process.cwd();
 const CLI_CMD = "yarn cli";
-const DEVNET_MINT = "5iZcuc26tToTLwNwWmaQabZrLJQLCrbx49fjZsosaUPG";
+const DEVNET_MINT = "C19Kt3sRSNuGYc9xGGvvzeY9Q4ENgnohDo66oGFDgfMt";
 const DEVNET_ADDRESS = "DBk7Bu7tdfJ3CwmMWf9L3u1ScsbzN2FCnGrsGeuZvQAk";
 
 function run(args: string): string {
