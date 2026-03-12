@@ -85,11 +85,28 @@ yarn cli supply --mint <address>
 
 ### Metadata
 
+Name and symbol are **immutable** after initialization to prevent ticker confusion for wallets, explorers, and holders. Only the URI (logo, docs, legal text) is mutable by the master authority.
+
 ```bash
-# Update metadata URI (logo, docs, legal text). Authority-only.
-# Name and symbol are immutable after initialization to prevent ticker confusion.
-yarn cli update-metadata --uri "https://example.com/new-metadata.json" --mint <address>
+# CLI: update metadata URI
+yarn cli update-metadata --uri "https://example.com/metadata.json" --mint <address>
 ```
+
+```typescript
+// SDK
+const stablecoin = await SolanaStablecoin.load(connection, mint);
+await stablecoin.updateMetadata("https://example.com/metadata.json");
+```
+
+```bash
+# API
+curl -X POST http://localhost:3000/api/v1/metadata \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"mint": "<address>", "uri": "https://example.com/metadata.json"}'
+```
+
+The frontend Metadata page fetches the URI JSON and displays the token logo, description, and attributes.
 
 ### Role Management
 

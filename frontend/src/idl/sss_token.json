@@ -2290,6 +2290,19 @@
       ]
     },
     {
+      "name": "MetadataUpdated",
+      "discriminator": [
+        132,
+        36,
+        215,
+        246,
+        166,
+        90,
+        189,
+        44
+      ]
+    },
+    {
       "name": "OracleConfigured",
       "discriminator": [
         111,
@@ -2816,6 +2829,30 @@
       }
     },
     {
+      "name": "MetadataUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "uri",
+            "type": "string"
+          },
+          {
+            "name": "by",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
       "name": "MinterInfo",
       "docs": [
         "Per-minter info (tracks quota usage).",
@@ -3058,6 +3095,20 @@
               "Whether the role is active"
             ],
             "type": "bool"
+          },
+          {
+            "name": "granted_by",
+            "docs": [
+              "Who granted this role"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "granted_at",
+            "docs": [
+              "When the role was granted (unix timestamp)"
+            ],
+            "type": "i64"
           },
           {
             "name": "bump",

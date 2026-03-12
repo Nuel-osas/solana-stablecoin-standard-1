@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { PublicKey } from "@solana/web3.js";
 import { TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
@@ -11,6 +11,15 @@ interface Props {
   mintAddress: string;
 }
 
+interface TokenMetadata {
+  name?: string;
+  symbol?: string;
+  description?: string;
+  image?: string;
+  external_url?: string;
+  attributes?: { trait_type: string; value: string }[];
+}
+
 export default function Metadata({ mintAddress }: Props) {
   const { state, program, refetch } = useStablecoin(mintAddress);
   const { publicKey, sendTransaction } = useWallet();
@@ -18,6 +27,17 @@ export default function Metadata({ mintAddress }: Props) {
 
   const [newUri, setNewUri] = useState("");
   const [updating, setUpdating] = useState(false);
+  const [metadata, setMetadata] = useState<TokenMetadata | null>(null);
+  const [imageError, setImageError] = useState(false);
+
+  useEffect(() => {
+    if (!state?.uri) { setMetadata(null); return; }
+    setImageError(false);
+    fetch(state.uri)
+      .then((res) => res.json())
+      .then((data) => setMetadata(data))
+      .catch(() => setMetadata(null));
+  }, [state?.uri]);
 
   if (!mintAddress) {
     return (
@@ -94,6 +114,32 @@ export default function Metadata({ mintAddress }: Props) {
             </span>
           </div>
         </div>
+
+        {/* Token image + metadata from URI */}
+        {metadata?.image && !imageError && (
+          <div className="mt-6 flex items-start gap-5 pt-4 border-t border-slate-800/50">
+            <img
+              src={metadata.image}
+              alt={metadata.name || "Token logo"}
+              onError={() => setImageError(true)}
+              className="w-20 h-20 rounded-xl object-cover border border-slate-700"
+            />
+            <div className="flex-1 space-y-1">
+              {metadata.description && (
+                <p className="text-sm text-slate-300">{metadata.description}</p>
+              )}
+              {metadata.attributes && metadata.attributes.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {metadata.attributes.map((attr, i) => (
+                    <span key={i} className="text-xs bg-slate-800 text-slate-400 px-2 py-1 rounded">
+                      {attr.trait_type}: <span className="text-slate-200">{attr.value}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Update URI */}

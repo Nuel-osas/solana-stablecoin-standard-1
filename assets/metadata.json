@@ -1,14 +1,13 @@
 {
-  "name": "MY USD",
-  "symbol": "MYUSD",
-  "description": "MY USD — A Solana Stablecoin Standard (SSS-3) compliant stablecoin with confidential transfers, RBAC, and oracle price enforcement.",
+  "name": "RURUUSD",
+  "symbol": "RUSD",
+  "description": "RURUUSD — A Solana Stablecoin Standard (SSS-2) compliant stablecoin with RBAC, blacklist, freeze, seize, and oracle price enforcement.",
   "image": "https://raw.githubusercontent.com/Nuel-osas/solana-stablecoin-standard/main/assets/logo.jpeg",
   "external_url": "https://github.com/Nuel-osas/solana-stablecoin-standard",
   "attributes": [
-    { "trait_type": "Preset", "value": "SSS-3 (Private)" },
+    { "trait_type": "Preset", "value": "SSS-2 (Compliant)" },
     { "trait_type": "Decimals", "value": "6" },
-    { "trait_type": "Confidential Transfers", "value": "Enabled" },
-    { "trait_type": "Transfer Hook", "value": "Enabled" },
-    { "trait_type": "Allowlist", "value": "Enabled" }
+    { "trait_type": "Permanent Delegate", "value": "Enabled" },
+    { "trait_type": "Transfer Hook", "value": "Enabled" }
   ]
 }

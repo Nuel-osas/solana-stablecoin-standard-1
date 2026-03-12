@@ -3097,6 +3097,20 @@
             "type": "bool"
           },
           {
+            "name": "granted_by",
+            "docs": [
+              "Who granted this role"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "granted_at",
+            "docs": [
+              "When the role was granted (unix timestamp)"
+            ],
+            "type": "i64"
+          },
+          {
             "name": "bump",
             "docs": [
               "PDA bump"
