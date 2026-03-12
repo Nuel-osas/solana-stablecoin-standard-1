@@ -5,6 +5,8 @@ import {
   findRolePDA,
   findBlacklistPDA,
   findMinterInfoPDA,
+  findAllowlistPDA,
+  findOracleConfigPDA,
 } from "../src/pda";
 import { Presets, SolanaStablecoin } from "../src/stablecoin";
 import { ComplianceModule } from "../src/compliance";
@@ -113,6 +115,52 @@ describe("SSS SDK", () => {
       const [, bump] = findStablecoinPDA(mint, programId);
       expect(bump).to.be.at.least(0);
       expect(bump).to.be.at.most(255);
+    });
+
+    it("derives allowlist PDA deterministically", () => {
+      const [stablecoinPDA] = findStablecoinPDA(mint, programId);
+      const address = Keypair.generate().publicKey;
+      const [pda1] = findAllowlistPDA(stablecoinPDA, address, programId);
+      const [pda2] = findAllowlistPDA(stablecoinPDA, address, programId);
+      expect(pda1.toBase58()).to.equal(pda2.toBase58());
+    });
+
+    it("derives different allowlist PDAs for different addresses", () => {
+      const [stablecoinPDA] = findStablecoinPDA(mint, programId);
+      const addr1 = Keypair.generate().publicKey;
+      const addr2 = Keypair.generate().publicKey;
+      const [pda1] = findAllowlistPDA(stablecoinPDA, addr1, programId);
+      const [pda2] = findAllowlistPDA(stablecoinPDA, addr2, programId);
+      expect(pda1.toBase58()).to.not.equal(pda2.toBase58());
+    });
+
+    it("allowlist PDA is off-curve", () => {
+      const [stablecoinPDA] = findStablecoinPDA(mint, programId);
+      const address = Keypair.generate().publicKey;
+      const [pda] = findAllowlistPDA(stablecoinPDA, address, programId);
+      expect(PublicKey.isOnCurve(pda.toBuffer())).to.equal(false);
+    });
+
+    it("derives oracle config PDA deterministically", () => {
+      const [stablecoinPDA] = findStablecoinPDA(mint, programId);
+      const [pda1] = findOracleConfigPDA(stablecoinPDA, programId);
+      const [pda2] = findOracleConfigPDA(stablecoinPDA, programId);
+      expect(pda1.toBase58()).to.equal(pda2.toBase58());
+    });
+
+    it("derives different oracle config PDAs for different stablecoins", () => {
+      const mint2 = Keypair.generate().publicKey;
+      const [stablecoinPDA1] = findStablecoinPDA(mint, programId);
+      const [stablecoinPDA2] = findStablecoinPDA(mint2, programId);
+      const [pda1] = findOracleConfigPDA(stablecoinPDA1, programId);
+      const [pda2] = findOracleConfigPDA(stablecoinPDA2, programId);
+      expect(pda1.toBase58()).to.not.equal(pda2.toBase58());
+    });
+
+    it("oracle config PDA is off-curve", () => {
+      const [stablecoinPDA] = findStablecoinPDA(mint, programId);
+      const [pda] = findOracleConfigPDA(stablecoinPDA, programId);
+      expect(PublicKey.isOnCurve(pda.toBuffer())).to.equal(false);
     });
   });
 

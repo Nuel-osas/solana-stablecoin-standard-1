@@ -85,7 +85,13 @@ yarn cli supply --mint <address>
 
 ### Metadata
 
-Name and symbol are **immutable** after initialization to prevent ticker confusion for wallets, explorers, and holders. Only the URI (logo, docs, legal text) is mutable by the master authority.
+Name and symbol are **immutable** after initialization to prevent ticker confusion for wallets, explorers, and holders. Only the URI is mutable by the master authority.
+
+The URI should point to a JSON file with an `image` field (Metaplex standard) so wallets display the token logo:
+
+```json
+{ "image": "https://example.com/logo.png" }
+```
 
 ```bash
 # CLI: update metadata URI
@@ -129,6 +135,9 @@ yarn cli roles check --address <address> --mint <address>
 ### SSS-2 Compliance
 
 ```bash
+# Transfer tokens (required for SSS-2/SSS-3 — wallets cannot resolve transfer hooks)
+yarn cli transfer --amount 100 --to <recipient> --mint <address>
+
 # Blacklist management
 yarn cli blacklist add --address <address> --reason "OFAC match" --mint <address>
 yarn cli blacklist remove --address <address> --mint <address>
@@ -145,6 +154,8 @@ yarn cli minters remove --address <address> --mint <address>
 yarn cli audit-log --mint <address>
 yarn cli holders --mint <address>
 ```
+
+> **Why transfers require CLI/SDK/frontend**: SSS-2 and SSS-3 tokens use Token-2022 transfer hooks for blacklist/allowlist enforcement. Wallets like Phantom and Backpack cannot resolve the extra accounts the hook requires, so transfers fail with "Failed to generate a valid transaction". Use the CLI `transfer` command, SDK `transfer()` method, or the frontend Transfer page instead.
 
 ### SSS-3 Allowlist
 
@@ -187,6 +198,9 @@ const private = await SolanaStablecoin.create(connection, {
 await compliant.mintTokens({ recipientTokenAccount, amount: 1_000_000, minter });
 await compliant.burn({ amount: 500_000, burner, tokenAccount });
 await compliant.assignRole({ role: "minter", assignee: minterPubkey, authority });
+
+// Transfer (required for SSS-2/SSS-3 — resolves transfer hook extra accounts)
+await compliant.transfer({ sender: senderKeypair, recipient: recipientPubkey, amount: 100 });
 
 // Compliance (SSS-2/SSS-3)
 await compliant.compliance.blacklistAdd(address, "Sanctions match", blacklisterKeypair);
@@ -365,7 +379,7 @@ The e2e test builds Token-2022 v10.0.0 from [source](https://github.com/solana-p
 
 ## Testing
 
-219+ tests across multiple test suites, all passing:
+225+ tests across multiple test suites, all passing:
 
 ```
   Anchor Integration Tests (136 tests):
@@ -388,12 +402,12 @@ The e2e test builds Token-2022 v10.0.0 from [source](https://github.com/solana-p
     Combined Compliance Scenarios (3 tests)
     CLI Smoke Tests (12 tests)
 
-  SDK Unit Tests (24 tests)
+  SDK Unit Tests (30 tests)
   Backend API Tests (24 tests)
   Docker Smoke Tests (6 tests)
   Trident Fuzz Flows (17 flows)
 
-  136 anchor + 12 CLI + 24 SDK + 24 backend + 6 docker + 17 fuzz = 219+
+  136 anchor + 12 CLI + 30 SDK + 24 backend + 6 docker + 17 fuzz = 225+
 ```
 
 ### Test Environment Matrix
