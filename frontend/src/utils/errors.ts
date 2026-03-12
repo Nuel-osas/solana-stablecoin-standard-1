@@ -4,6 +4,40 @@
 export function parseError(err: any): string {
   const msg = err?.message || err?.toString() || "Unknown error";
 
+  // Wallet errors (check first — no need to parse further)
+  if (msg.includes("User rejected")) {
+    return "Transaction rejected by wallet.";
+  }
+  if (msg.includes("Unexpected error")) {
+    return "Wallet error — make sure Phantom is set to Devnet and try again.";
+  }
+  if (msg.includes("Insufficient funds") || msg.includes("insufficient lamports")) {
+    return "Insufficient SOL for transaction fees.";
+  }
+
+  // Transaction simulation failed — extract the actual error message from logs.
+  // This catches transfer hook errors (allowlist/blacklist) with their correct messages.
+  if (msg.includes("Transaction simulation failed")) {
+    const innerMatch = msg.match(/Error Message: (.+?)(?:\.|$)/);
+    if (innerMatch) return innerMatch[1];
+  }
+
+  // Check logs array for transfer hook error messages
+  const logs: string[] = err?.logs || [];
+  const logStr = logs.join(" ");
+  if (logStr.includes("Sender is not on the allowlist")) {
+    return "Sender is not on the allowlist";
+  }
+  if (logStr.includes("Recipient is not on the allowlist")) {
+    return "Recipient is not on the allowlist";
+  }
+  if (logStr.includes("Sender is blacklisted")) {
+    return "Sender is blacklisted";
+  }
+  if (logStr.includes("Recipient is blacklisted")) {
+    return "Recipient is blacklisted";
+  }
+
   // Anchor program errors (from IDL or error code)
   const anchorMatch = msg.match(/custom program error: 0x([0-9a-fA-F]+)/);
   if (anchorMatch) {
@@ -52,20 +86,8 @@ export function parseError(err: any): string {
     return "This account already exists (e.g., role already assigned or address already on list).";
   }
 
-  // Wallet errors
-  if (msg.includes("User rejected")) {
-    return "Transaction rejected by wallet.";
-  }
-  if (msg.includes("Unexpected error")) {
-    return "Wallet error — make sure Phantom is set to Devnet and try again.";
-  }
-  if (msg.includes("Insufficient funds") || msg.includes("insufficient lamports")) {
-    return "Insufficient SOL for transaction fees.";
-  }
+  // Generic simulation failure fallback
   if (msg.includes("Transaction simulation failed")) {
-    // Try to extract the inner error
-    const innerMatch = msg.match(/Error Message: (.+?)(?:\.|$)/);
-    if (innerMatch) return innerMatch[1];
     return "Transaction simulation failed — check your inputs and permissions.";
   }
 

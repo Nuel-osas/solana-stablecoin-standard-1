@@ -4,6 +4,7 @@ import {
   TOKEN_2022_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
   getAssociatedTokenAddressSync,
+  createAssociatedTokenAccountInstruction,
   loadKeypair,
   getConnection,
   getProgram,
@@ -47,6 +48,24 @@ export function registerMintCommands(cli: Command): void {
         console.log(`  Mint: ${mint.toBase58()}`);
         console.log(`  Recipient ATA: ${recipientATA.toBase58()}`);
         console.log(`  Amount (base units): ${amount.toString()}`);
+
+        // Auto-create recipient ATA if it doesn't exist
+        const ataInfo = await connection.getAccountInfo(recipientATA);
+        if (!ataInfo) {
+          const { Transaction } = await import("@solana/web3.js");
+          const createAtaTx = new Transaction().add(
+            createAssociatedTokenAccountInstruction(
+              minter.publicKey, recipientATA, recipient, mint,
+              TOKEN_2022_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID,
+            )
+          );
+          createAtaTx.feePayer = minter.publicKey;
+          createAtaTx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+          createAtaTx.sign(minter);
+          const ataSig = await connection.sendRawTransaction(createAtaTx.serialize());
+          await connection.confirmTransaction(ataSig, "confirmed");
+          console.log(`  Created recipient ATA automatically`);
+        }
 
         const tx = await program.methods
           .mintTokens(amount)

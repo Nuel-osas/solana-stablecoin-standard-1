@@ -300,6 +300,34 @@ export class SolanaStablecoin {
       this.programId
     );
 
+    // Resolve recipient ATA — auto-create if needed
+    let recipientATA: PublicKey;
+    if (params.recipientTokenAccount) {
+      recipientATA = params.recipientTokenAccount;
+    } else if (params.recipient) {
+      recipientATA = getAssociatedTokenAddressSync(
+        this.mint, params.recipient, false, TOKEN_2022_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+    } else {
+      throw new Error("Either recipientTokenAccount or recipient must be provided");
+    }
+
+    const ataInfo = await this.connection.getAccountInfo(recipientATA);
+    if (!ataInfo) {
+      const recipient = params.recipient || params.minter.publicKey;
+      const createAtaTx = new Transaction().add(
+        createAssociatedTokenAccountInstruction(
+          params.minter.publicKey, recipientATA, recipient, this.mint,
+          TOKEN_2022_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID,
+        )
+      );
+      createAtaTx.feePayer = params.minter.publicKey;
+      createAtaTx.recentBlockhash = (await this.connection.getLatestBlockhash()).blockhash;
+      createAtaTx.sign(params.minter);
+      const ataSig = await this.connection.sendRawTransaction(createAtaTx.serialize());
+      await this.connection.confirmTransaction(ataSig, "confirmed");
+    }
+
     const txSig = await this.program.methods
       .mintTokens(amount)
       .accounts({
@@ -308,7 +336,7 @@ export class SolanaStablecoin {
         mint: this.mint,
         roleAssignment: rolePDA,
         minterInfo: minterInfoPDA,
-        recipientTokenAccount: params.recipientTokenAccount,
+        recipientTokenAccount: recipientATA,
         tokenProgram: TOKEN_2022_PROGRAM_ID,
       })
       .signers([params.minter])

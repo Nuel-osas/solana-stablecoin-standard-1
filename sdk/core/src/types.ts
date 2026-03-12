@@ -58,7 +58,8 @@ export interface StablecoinState {
 }
 
 export interface MintParams {
-  recipientTokenAccount: PublicKey;
+  recipientTokenAccount?: PublicKey;
+  recipient?: PublicKey;
   amount: number | anchor.BN;
   minter: Keypair;
 }
