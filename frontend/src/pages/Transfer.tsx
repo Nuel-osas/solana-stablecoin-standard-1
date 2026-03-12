@@ -110,6 +110,7 @@ export default function Transfer({ mintAddress }: Props) {
       setAmount("");
       setRecipient("");
     } catch (err: any) {
+      console.error("Transfer error:", err, err?.logs);
       toast.error(parseError(err));
     } finally {
       setTransferring(false);

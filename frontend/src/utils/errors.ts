@@ -22,20 +22,29 @@ export function parseError(err: any): string {
     if (innerMatch) return innerMatch[1];
   }
 
-  // Check logs array for transfer hook error messages
-  const logs: string[] = err?.logs || [];
-  const logStr = logs.join(" ");
-  if (logStr.includes("Sender is not on the allowlist")) {
+  // Check logs array for specific error messages
+  const logs: string[] = err?.logs || err?.simulationResponse?.logs || [];
+  // Also check if logs are embedded in the error message itself
+  const fullText = msg + " " + logs.join(" ");
+
+  // Frozen account check
+  if (fullText.includes("frozen") || fullText.includes("0x11")) {
+    return "Account is frozen. Thaw it first before transferring.";
+  }
+  if (fullText.includes("Sender is not on the allowlist")) {
     return "Sender is not on the allowlist";
   }
-  if (logStr.includes("Recipient is not on the allowlist")) {
+  if (fullText.includes("Recipient is not on the allowlist")) {
     return "Recipient is not on the allowlist";
   }
-  if (logStr.includes("Sender is blacklisted")) {
+  if (fullText.includes("Sender is blacklisted")) {
     return "Sender is blacklisted";
   }
-  if (logStr.includes("Recipient is blacklisted")) {
+  if (fullText.includes("Recipient is blacklisted")) {
     return "Recipient is blacklisted";
+  }
+  if (fullText.includes("paused") || fullText.includes("Paused")) {
+    return "Token operations are paused.";
   }
 
   // Anchor program errors (from IDL or error code)
@@ -86,9 +95,13 @@ export function parseError(err: any): string {
     return "This account already exists (e.g., role already assigned or address already on list).";
   }
 
-  // Generic simulation failure fallback
+  // Generic simulation failure fallback — try to extract hex error code from logs
   if (msg.includes("Transaction simulation failed")) {
-    return "Transaction simulation failed — check your inputs and permissions.";
+    const hexMatch = fullText.match(/custom program error: 0x([0-9a-fA-F]+)/);
+    if (hexMatch) {
+      return `Transaction failed (program error 0x${hexMatch[1]}). Check the browser console for details.`;
+    }
+    return "Transaction simulation failed — check your inputs and permissions. See browser console for details.";
   }
 
   // Fallback: truncate if too long

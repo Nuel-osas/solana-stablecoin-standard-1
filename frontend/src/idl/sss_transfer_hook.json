@@ -1,0 +1,152 @@
+{
+  "address": "B9HzG9fuxbuJBG2wTSP6UmxBSQLdaUAk62Kcdf41WxAt",
+  "metadata": {
+    "name": "sss_transfer_hook",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "SSS Transfer Hook: Enforces blacklist checks on every Token-2022 transfer"
+  },
+  "instructions": [
+    {
+      "name": "execute",
+      "docs": [
+        "Called by Token-2022 on every transfer.",
+        "Enforces blacklist (SSS-2) and allowlist (SSS-3) checks."
+      ],
+      "discriminator": [
+        130,
+        221,
+        242,
+        154,
+        13,
+        193,
+        189,
+        29
+      ],
+      "accounts": [
+        {
+          "name": "source_account",
+          "docs": [
+            "Source token account"
+          ]
+        },
+        {
+          "name": "mint",
+          "docs": [
+            "Mint"
+          ]
+        },
+        {
+          "name": "destination_account",
+          "docs": [
+            "Destination token account"
+          ]
+        },
+        {
+          "name": "authority",
+          "docs": [
+            "Authority (owner of source)"
+          ]
+        },
+        {
+          "name": "stablecoin",
+          "docs": [
+            "Stablecoin config PDA (reads enable_allowlist flag)"
+          ]
+        },
+        {
+          "name": "source_blacklist",
+          "docs": [
+            "Optional: source blacklist PDA"
+          ],
+          "optional": true
+        },
+        {
+          "name": "destination_blacklist",
+          "docs": [
+            "Optional: destination blacklist PDA"
+          ],
+          "optional": true
+        },
+        {
+          "name": "source_allowlist",
+          "docs": [
+            "Optional: source allowlist PDA (SSS-3)"
+          ],
+          "optional": true
+        },
+        {
+          "name": "destination_allowlist",
+          "docs": [
+            "Optional: destination allowlist PDA (SSS-3)"
+          ],
+          "optional": true
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initialize_extra_account_meta_list",
+      "docs": [
+        "Required by the transfer hook interface — returns extra account metas",
+        "needed for the execute instruction."
+      ],
+      "discriminator": [
+        92,
+        197,
+        174,
+        197,
+        41,
+        124,
+        19,
+        3
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "extra_account_meta_list",
+          "writable": true
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "SenderBlacklisted",
+      "msg": "Sender is blacklisted"
+    },
+    {
+      "code": 6001,
+      "name": "RecipientBlacklisted",
+      "msg": "Recipient is blacklisted"
+    },
+    {
+      "code": 6002,
+      "name": "SenderNotAllowlisted",
+      "msg": "Sender is not on the allowlist"
+    },
+    {
+      "code": 6003,
+      "name": "RecipientNotAllowlisted",
+      "msg": "Recipient is not on the allowlist"
+    }
+  ]
+}

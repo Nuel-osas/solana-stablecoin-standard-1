@@ -25,6 +25,11 @@ import MinterQuotas from "./pages/MinterQuotas";
 import Metadata from "./pages/Metadata";
 import AuditLog from "./pages/AuditLog";
 import Transfer from "./pages/Transfer";
+import Initialize from "./pages/Initialize";
+import FreezeThaw from "./pages/FreezeThaw";
+import PauseUnpause from "./pages/PauseUnpause";
+import Seize from "./pages/Seize";
+import Holders from "./pages/Holders";
 
 export default function App() {
   const endpoint = useMemo(() => clusterApiUrl("devnet"), []);
@@ -97,6 +102,26 @@ export default function App() {
                   <Route
                     path="/audit-log"
                     element={<AuditLog mintAddress={mintAddress} />}
+                  />
+                  <Route
+                    path="/initialize"
+                    element={<Initialize />}
+                  />
+                  <Route
+                    path="/freeze-thaw"
+                    element={<FreezeThaw mintAddress={mintAddress} />}
+                  />
+                  <Route
+                    path="/pause-unpause"
+                    element={<PauseUnpause mintAddress={mintAddress} />}
+                  />
+                  <Route
+                    path="/seize"
+                    element={<Seize mintAddress={mintAddress} />}
+                  />
+                  <Route
+                    path="/holders"
+                    element={<Holders mintAddress={mintAddress} />}
                   />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>

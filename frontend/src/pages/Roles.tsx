@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import toast from "react-hot-toast";
@@ -7,6 +7,7 @@ import {
   deriveStablecoinPDA,
   deriveRoleAssignmentPDA,
   deriveMinterInfoPDA,
+  shortenAddress,
 } from "../utils/pda";
 import { parseError } from "../utils/errors";
 
@@ -36,6 +37,42 @@ export default function Roles({ mintAddress }: Props) {
   const [checking, setChecking] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [revoking, setRevoking] = useState(false);
+  const [roleHolders, setRoleHolders] = useState<Record<string, string[]>>({});
+  const [loadingRoles, setLoadingRoles] = useState(false);
+  const [revokeManualEntry, setRevokeManualEntry] = useState(false);
+
+  // Fetch all role assignments from on-chain
+  const fetchRoleHolders = useCallback(async () => {
+    if (!program || !mintAddress) return;
+    try {
+      setLoadingRoles(true);
+      const mint = new PublicKey(mintAddress);
+      const [stablecoinPDA] = deriveStablecoinPDA(mint);
+
+      const entries = await (program.account as any).roleAssignment.all([
+        { memcmp: { offset: 8, bytes: stablecoinPDA.toBase58() } },
+      ]);
+
+      const grouped: Record<string, string[]> = {};
+      for (const e of entries) {
+        const acc = e.account;
+        if (!acc.active) continue;
+        // Anchor enum: { minter: {} } -> key is the role name
+        const roleKey = Object.keys(acc.role)[0];
+        const roleName = roleKey.charAt(0).toUpperCase() + roleKey.slice(1);
+        const addr = acc.assignee.toBase58();
+        if (!grouped[roleName]) grouped[roleName] = [];
+        if (!grouped[roleName].includes(addr)) grouped[roleName].push(addr);
+      }
+      setRoleHolders(grouped);
+    } catch (err: any) {
+      console.error("Failed to fetch role holders:", err);
+    } finally {
+      setLoadingRoles(false);
+    }
+  }, [program, mintAddress]);
+
+  useEffect(() => { fetchRoleHolders(); }, [fetchRoleHolders]);
 
   if (!mintAddress) {
     return (
@@ -112,6 +149,7 @@ export default function Roles({ mintAddress }: Props) {
       const sig = await sendTransaction(tx, connection);
       await connection.confirmTransaction(sig, "confirmed");
       toast.success(`Role "${assignRole}" assigned! Tx: ${sig.slice(0, 8)}...`);
+      fetchRoleHolders();
       setAssignee("");
     } catch (err: any) {
       toast.error(parseError(err));
@@ -148,6 +186,7 @@ export default function Roles({ mintAddress }: Props) {
       const sig = await sendTransaction(tx, connection);
       await connection.confirmTransaction(sig, "confirmed");
       toast.success(`Role "${revokeRole}" revoked! Tx: ${sig.slice(0, 8)}...`);
+      fetchRoleHolders();
       setRevokeAssignee("");
     } catch (err: any) {
       toast.error(parseError(err));
@@ -246,13 +285,23 @@ export default function Roles({ mintAddress }: Props) {
           </div>
           <div>
             <label className="block text-sm text-slate-400 mb-1">Assignee Address</label>
-            <input
-              type="text"
-              value={assignee}
-              onChange={(e) => setAssignee(e.target.value.trim())}
-              placeholder="Wallet address to assign role to"
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
-            />
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={assignee}
+                onChange={(e) => setAssignee(e.target.value.trim())}
+                placeholder="Wallet address to assign role to"
+                className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+              />
+              {publicKey && (
+                <button
+                  onClick={() => setAssignee(publicKey.toBase58())}
+                  className="px-3 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs rounded-lg transition-colors whitespace-nowrap"
+                >
+                  My Wallet
+                </button>
+              )}
+            </div>
           </div>
           <button
             onClick={handleAssign}
@@ -272,7 +321,11 @@ export default function Roles({ mintAddress }: Props) {
             <label className="block text-sm text-slate-400 mb-1">Role</label>
             <select
               value={revokeRole}
-              onChange={(e) => setRevokeRole(e.target.value)}
+              onChange={(e) => {
+                setRevokeRole(e.target.value);
+                setRevokeAssignee("");
+                setRevokeManualEntry(false);
+              }}
               className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
               {ROLES.map((r) => (
@@ -283,14 +336,69 @@ export default function Roles({ mintAddress }: Props) {
             </select>
           </div>
           <div>
-            <label className="block text-sm text-slate-400 mb-1">Assignee Address</label>
-            <input
-              type="text"
-              value={revokeAssignee}
-              onChange={(e) => setRevokeAssignee(e.target.value.trim())}
-              placeholder="Wallet address to revoke role from"
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
-            />
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm text-slate-400">Assignee Address</label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => fetchRoleHolders()}
+                  className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+                >
+                  {loadingRoles ? "Loading..." : "Refresh"}
+                </button>
+                {(roleHolders[revokeRole]?.length ?? 0) > 0 && (
+                  <button
+                    onClick={() => { setRevokeManualEntry(!revokeManualEntry); setRevokeAssignee(""); }}
+                    className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                  >
+                    {revokeManualEntry ? "Select from list" : "Enter manually"}
+                  </button>
+                )}
+              </div>
+            </div>
+            {(roleHolders[revokeRole]?.length ?? 0) > 0 && !revokeManualEntry ? (
+              <div>
+                <select
+                  value={revokeAssignee}
+                  onChange={(e) => setRevokeAssignee(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono appearance-none cursor-pointer"
+                >
+                  <option value="">-- Select {revokeRole} holder --</option>
+                  {roleHolders[revokeRole].map((addr) => (
+                    <option key={addr} value={addr}>
+                      {shortenAddress(addr)}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500 mt-1">
+                  {roleHolders[revokeRole].length} {revokeRole} holder{roleHolders[revokeRole].length !== 1 ? "s" : ""} on-chain
+                </p>
+              </div>
+            ) : (
+              <div>
+                {(roleHolders[revokeRole]?.length ?? 0) === 0 && (
+                  <p className="text-xs text-slate-500 mb-2">
+                    {loadingRoles ? "Loading role holders..." : `No ${revokeRole} holders found on-chain.`}
+                  </p>
+                )}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={revokeAssignee}
+                    onChange={(e) => setRevokeAssignee(e.target.value.trim())}
+                    placeholder="Wallet address to revoke role from"
+                    className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                  />
+                  {publicKey && (
+                    <button
+                      onClick={() => setRevokeAssignee(publicKey.toBase58())}
+                      className="px-3 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs rounded-lg transition-colors whitespace-nowrap"
+                    >
+                      My Wallet
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           <button
             onClick={handleRevoke}
