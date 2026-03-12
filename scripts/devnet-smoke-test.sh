@@ -206,10 +206,9 @@ if (( $(echo "$BALANCE < 0.5" | bc -l) )); then
   sleep 5
 fi
 
-# Airdrop some SOL to secondary wallet for ATA creation
-echo "Airdropping to secondary wallet..."
-solana airdrop 0.5 "$SECONDARY_ADDR" --url devnet || true
-sleep 3
+# Fund secondary wallet from authority (airdrop often rate-limited)
+echo "Funding secondary wallet..."
+solana transfer "$SECONDARY_ADDR" 0.1 --url devnet --keypair "$KEYPAIR" --allow-unfunded-recipient || true
 
 echo ""
 echo "=== Starting Smoke Tests ==="
@@ -237,18 +236,21 @@ run_and_log "SSS-1" "Assign minter role" "sss-token roles assign --role minter .
 run_and_log "SSS-1" "Add minter" "sss-token minters add ..." \
   sss-token minters add --address "$AUTHORITY" --mint "$SSS1_MINT" --cluster "$CLUSTER" --keypair "$KEYPAIR"
 
-# 1.4 Mint tokens
+# 1.4 Create ATA for authority
+echo "[SSS-1] Creating ATA for authority ..."
+spl-token create-account "$SSS1_MINT" -u devnet --fee-payer "$KEYPAIR" 2>/dev/null || true
+SSS1_ATA=$(spl-token address --verbose --token "$SSS1_MINT" --owner "$AUTHORITY" -u devnet 2>/dev/null | grep "Associated token address" | grep -oE '[1-9A-HJ-NP-Za-km-z]{32,44}' || true)
+echo "  SSS-1 ATA: $SSS1_ATA"
+
+# 1.5 Mint tokens
 run_and_log "SSS-1" "Mint 1000 tokens" "sss-token mint --amount 1000 ..." \
   sss-token mint --to "$AUTHORITY" --amount 1000 --mint "$SSS1_MINT" --cluster "$CLUSTER" --keypair "$KEYPAIR"
 
-# 1.5 Get token account for freeze/thaw
-SSS1_ATA=$(spl-token address --token "$SSS1_MINT" --owner "$AUTHORITY" --url devnet --output json 2>/dev/null | grep -oE '[1-9A-HJ-NP-Za-km-z]{32,44}' | head -1 || true)
-if [ -z "$SSS1_ATA" ]; then
-  SSS1_ATA=$(spl-token address --token "$SSS1_MINT" --owner "$AUTHORITY" --url devnet 2>/dev/null | grep -oE '[1-9A-HJ-NP-Za-km-z]{32,44}' | head -1 || true)
-fi
-echo "  SSS-1 ATA: $SSS1_ATA"
+# 1.6 Assign pauser role (needed for freeze/pause)
+run_and_log "SSS-1" "Assign pauser role" "sss-token roles assign --role pauser ..." \
+  sss-token roles assign --role pauser --address "$AUTHORITY" --mint "$SSS1_MINT" --cluster "$CLUSTER" --keypair "$KEYPAIR"
 
-# 1.6 Freeze
+# 1.7 Freeze
 run_and_log "SSS-1" "Freeze token account" "sss-token freeze ..." \
   sss-token freeze --account "$SSS1_ATA" --mint "$SSS1_MINT" --cluster "$CLUSTER" --keypair "$KEYPAIR"
 
@@ -306,11 +308,19 @@ run_and_log "SSS-2" "Assign seizer role" "sss-token roles assign --role seizer .
 run_and_log "SSS-2" "Add minter" "sss-token minters add ..." \
   sss-token minters add --address "$AUTHORITY" --mint "$SSS2_MINT" --cluster "$CLUSTER" --keypair "$KEYPAIR"
 
-# 2.4 Mint tokens to authority
+# 2.4 Create ATA for authority
+echo "[SSS-2] Creating ATA for authority ..."
+spl-token create-account "$SSS2_MINT" -u devnet --fee-payer "$KEYPAIR" 2>/dev/null || true
+
+# 2.5 Mint tokens to authority
 run_and_log "SSS-2" "Mint 5000 tokens to authority" "sss-token mint --amount 5000 ..." \
   sss-token mint --to "$AUTHORITY" --amount 5000 --mint "$SSS2_MINT" --cluster "$CLUSTER" --keypair "$KEYPAIR"
 
-# 2.5 Transfer some tokens to secondary (to have tokens to seize later)
+# 2.6 Create ATA for secondary
+echo "[SSS-2] Creating ATA for secondary ..."
+spl-token create-account "$SSS2_MINT" --owner "$SECONDARY_ADDR" -u devnet --fee-payer "$KEYPAIR" 2>/dev/null || true
+
+# 2.7 Transfer some tokens to secondary (to have tokens to seize later)
 run_and_log "SSS-2" "Transfer 500 to secondary" "sss-token transfer --amount 500 ..." \
   sss-token transfer --to "$SECONDARY_ADDR" --amount 500 --mint "$SSS2_MINT" --cluster "$CLUSTER" --keypair "$KEYPAIR"
 
@@ -319,8 +329,8 @@ run_and_log "SSS-2" "Blacklist secondary addr" "sss-token blacklist add ..." \
   sss-token blacklist add --address "$SECONDARY_ADDR" --mint "$SSS2_MINT" --reason '"Smoke test blacklist"' --cluster "$CLUSTER" --keypair "$KEYPAIR"
 
 # 2.7 Seize tokens from blacklisted account
-SSS2_SECONDARY_ATA=$(spl-token address --token "$SSS2_MINT" --owner "$SECONDARY_ADDR" --url devnet 2>/dev/null | grep -oE '[1-9A-HJ-NP-Za-km-z]{32,44}' | head -1 || true)
-SSS2_AUTHORITY_ATA=$(spl-token address --token "$SSS2_MINT" --owner "$AUTHORITY" --url devnet 2>/dev/null | grep -oE '[1-9A-HJ-NP-Za-km-z]{32,44}' | head -1 || true)
+SSS2_SECONDARY_ATA=$(spl-token address --verbose --token "$SSS2_MINT" --owner "$SECONDARY_ADDR" -u devnet 2>/dev/null | grep "Associated token address" | grep -oE '[1-9A-HJ-NP-Za-km-z]{32,44}' || true)
+SSS2_AUTHORITY_ATA=$(spl-token address --verbose --token "$SSS2_MINT" --owner "$AUTHORITY" -u devnet 2>/dev/null | grep "Associated token address" | grep -oE '[1-9A-HJ-NP-Za-km-z]{32,44}' || true)
 
 if [ -n "$SSS2_SECONDARY_ATA" ] && [ -n "$SSS2_AUTHORITY_ATA" ]; then
   run_and_log "SSS-2" "Seize tokens from blacklisted" "sss-token seize ..." \
@@ -329,6 +339,10 @@ else
   echo "  Skipping seize — could not resolve ATAs"
   log_evidence "SSS-2" "Seize tokens" "sss-token seize ..." "(skipped)" "SKIPPED (ATA resolution)"
 fi
+
+# Create ATA for third wallet
+echo "[SSS-2] Creating ATA for third wallet ..."
+spl-token create-account "$SSS2_MINT" --owner "$THIRD_ADDR" -u devnet --fee-payer "$KEYPAIR" 2>/dev/null || true
 
 # 2.8 Transfer tokens (normal)
 run_and_log "SSS-2" "Transfer 100 tokens" "sss-token transfer --amount 100 ..." \
@@ -368,26 +382,34 @@ run_and_log "SSS-3" "Assign minter role" "sss-token roles assign --role minter .
 run_and_log "SSS-3" "Add minter" "sss-token minters add ..." \
   sss-token minters add --address "$AUTHORITY" --mint "$SSS3_MINT" --cluster "$CLUSTER" --keypair "$KEYPAIR"
 
-# 3.4 Mint tokens
+# 3.4 Create ATA for authority
+echo "[SSS-3] Creating ATA for authority ..."
+spl-token create-account "$SSS3_MINT" -u devnet --fee-payer "$KEYPAIR" 2>/dev/null || true
+
+# 3.5 Mint tokens
 run_and_log "SSS-3" "Mint 2000 tokens" "sss-token mint --amount 2000 ..." \
   sss-token mint --to "$AUTHORITY" --amount 2000 --mint "$SSS3_MINT" --cluster "$CLUSTER" --keypair "$KEYPAIR"
 
-# 3.5 Transfer WITHOUT allowlist (should fail)
+# 3.6 Create ATA for secondary
+echo "[SSS-3] Creating ATA for secondary ..."
+spl-token create-account "$SSS3_MINT" --owner "$SECONDARY_ADDR" -u devnet --fee-payer "$KEYPAIR" 2>/dev/null || true
+
+# 3.7 Transfer WITHOUT allowlist (should fail)
 run_expect_fail "SSS-3" "Transfer without allowlist (expect fail)" "sss-token transfer ... (no allowlist)" \
   sss-token transfer --to "$SECONDARY_ADDR" --amount 100 --mint "$SSS3_MINT" --cluster "$CLUSTER" --keypair "$KEYPAIR"
 
-# 3.6 Add sender and recipient to allowlist
+# 3.8 Add sender and recipient to allowlist
 run_and_log "SSS-3" "Add authority to allowlist" "sss-token allowlist add (authority) ..." \
   sss-token allowlist add --address "$AUTHORITY" --mint "$SSS3_MINT" --cluster "$CLUSTER" --keypair "$KEYPAIR"
 
 run_and_log "SSS-3" "Add secondary to allowlist" "sss-token allowlist add (secondary) ..." \
   sss-token allowlist add --address "$SECONDARY_ADDR" --mint "$SSS3_MINT" --cluster "$CLUSTER" --keypair "$KEYPAIR"
 
-# 3.7 Transfer WITH allowlist (should succeed)
+# 3.9 Transfer WITH allowlist (should succeed)
 run_and_log "SSS-3" "Transfer with allowlist" "sss-token transfer ... (allowlisted)" \
   sss-token transfer --to "$SECONDARY_ADDR" --amount 100 --mint "$SSS3_MINT" --cluster "$CLUSTER" --keypair "$KEYPAIR"
 
-# 3.8 Status / Supply / Holders
+# 3.10 Status / Supply / Holders
 run_and_log "SSS-3" "Query status" "sss-token status ..." \
   sss-token status --mint "$SSS3_MINT" --cluster "$CLUSTER"
 
