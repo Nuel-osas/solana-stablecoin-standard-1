@@ -4,8 +4,15 @@ import {
   PublicKey,
   SystemProgram,
   SYSVAR_RENT_PUBKEY,
+  Transaction,
 } from "@solana/web3.js";
-import { TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
+import {
+  TOKEN_2022_PROGRAM_ID,
+  getAssociatedTokenAddressSync,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  createAssociatedTokenAccountInstruction,
+  createTransferCheckedWithTransferHookInstruction,
+} from "@solana/spl-token";
 import * as anchor from "@coral-xyz/anchor";
 import { findStablecoinPDA, findRolePDA, findMinterInfoPDA, findOracleConfigPDA } from "./pda";
 import { ComplianceModule } from "./compliance";
@@ -18,11 +25,13 @@ import type {
   BurnParams,
   FreezeParams,
   ThawParams,
+  TransferParams,
 } from "./types";
 
 import idlJson from "./idl/sss_token.json";
 
 const PROGRAM_ID = new PublicKey("BXG5KG57ef5vgZdA4mWjBYfrFPyaaZEvdHCmGsuj7vbq");
+const TRANSFER_HOOK_PROGRAM_ID = new PublicKey("B9HzG9fuxbuJBG2wTSP6UmxBSQLdaUAk62Kcdf41WxAt");
 
 export enum Presets {
   SSS_1 = "SSS_1",
@@ -392,6 +401,64 @@ export class SolanaStablecoin {
       .rpc();
 
     return txSig;
+  }
+
+  /**
+   * Transfer tokens with transfer hook support.
+   * Wallets cannot resolve transfer hook extra accounts natively,
+   * so this method must be used instead of standard wallet transfers.
+   */
+  async transfer(params: TransferParams): Promise<string> {
+    const mintInfo = await this.connection.getTokenSupply(this.mint);
+    const decimals = mintInfo.value.decimals;
+
+    const amount = typeof params.amount === "number"
+      ? BigInt(Math.round(params.amount * Math.pow(10, decimals)))
+      : BigInt(params.amount.toString());
+
+    const senderATA = getAssociatedTokenAddressSync(
+      this.mint, params.sender.publicKey, false, TOKEN_2022_PROGRAM_ID
+    );
+    const recipientATA = getAssociatedTokenAddressSync(
+      this.mint, params.recipient, false, TOKEN_2022_PROGRAM_ID
+    );
+
+    const tx = new Transaction();
+
+    // Create recipient ATA first (must exist before resolving hook accounts)
+    const recipientATAInfo = await this.connection.getAccountInfo(recipientATA);
+    if (!recipientATAInfo) {
+      const createAtaTx = new Transaction();
+      createAtaTx.add(
+        createAssociatedTokenAccountInstruction(
+          params.sender.publicKey, recipientATA, params.recipient, this.mint,
+          TOKEN_2022_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID,
+        )
+      );
+      createAtaTx.feePayer = params.sender.publicKey;
+      createAtaTx.recentBlockhash = (await this.connection.getLatestBlockhash()).blockhash;
+      createAtaTx.sign(params.sender);
+      const ataSig = await this.connection.sendRawTransaction(createAtaTx.serialize());
+      await this.connection.confirmTransaction(ataSig, "confirmed");
+    }
+
+    // Build transfer instruction with hook accounts
+    const transferIx = await createTransferCheckedWithTransferHookInstruction(
+      this.connection, senderATA, this.mint, recipientATA, params.sender.publicKey,
+      amount, decimals, [], "confirmed", TOKEN_2022_PROGRAM_ID,
+    );
+    tx.add(transferIx);
+
+    tx.feePayer = params.sender.publicKey;
+    tx.recentBlockhash = (await this.connection.getLatestBlockhash()).blockhash;
+    tx.sign(params.sender);
+
+    const sig = await this.connection.sendRawTransaction(tx.serialize(), {
+      skipPreflight: false,
+    });
+    await this.connection.confirmTransaction(sig, "confirmed");
+
+    return sig;
   }
 
   /**
