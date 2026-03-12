@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 
+/// Emitted when a new stablecoin is initialized.
 #[event]
 pub struct StablecoinInitialized {
     pub mint: Pubkey,
@@ -12,6 +13,7 @@ pub struct StablecoinInitialized {
     pub timestamp: i64,
 }
 
+/// Emitted when tokens are minted to a recipient.
 #[event]
 pub struct TokensMinted {
     pub mint: Pubkey,
@@ -21,6 +23,7 @@ pub struct TokensMinted {
     pub timestamp: i64,
 }
 
+/// Emitted when tokens are burned.
 #[event]
 pub struct TokensBurned {
     pub mint: Pubkey,
@@ -29,6 +32,7 @@ pub struct TokensBurned {
     pub timestamp: i64,
 }
 
+/// Emitted when a token account is frozen.
 #[event]
 pub struct AccountFrozen {
     pub mint: Pubkey,
@@ -37,6 +41,7 @@ pub struct AccountFrozen {
     pub timestamp: i64,
 }
 
+/// Emitted when a token account is thawed.
 #[event]
 pub struct AccountThawed {
     pub mint: Pubkey,
@@ -45,6 +50,7 @@ pub struct AccountThawed {
     pub timestamp: i64,
 }
 
+/// Emitted when all token operations are paused.
 #[event]
 pub struct Paused {
     pub mint: Pubkey,
@@ -52,6 +58,7 @@ pub struct Paused {
     pub timestamp: i64,
 }
 
+/// Emitted when token operations are resumed.
 #[event]
 pub struct Unpaused {
     pub mint: Pubkey,
@@ -59,6 +66,7 @@ pub struct Unpaused {
     pub timestamp: i64,
 }
 
+/// Emitted when a role is assigned to an address.
 #[event]
 pub struct RoleAssigned {
     pub mint: Pubkey,
@@ -68,6 +76,7 @@ pub struct RoleAssigned {
     pub timestamp: i64,
 }
 
+/// Emitted when a role is revoked from an address.
 #[event]
 pub struct RoleRevoked {
     pub mint: Pubkey,
@@ -77,6 +86,7 @@ pub struct RoleRevoked {
     pub timestamp: i64,
 }
 
+/// Emitted when a new master authority is nominated (two-step transfer, step 1).
 #[event]
 pub struct AuthorityNominated {
     pub mint: Pubkey,
@@ -85,6 +95,7 @@ pub struct AuthorityNominated {
     pub timestamp: i64,
 }
 
+/// Emitted when master authority is transferred to a new address.
 #[event]
 pub struct AuthorityTransferred {
     pub mint: Pubkey,
@@ -93,6 +104,7 @@ pub struct AuthorityTransferred {
     pub timestamp: i64,
 }
 
+/// Emitted when the supply cap is updated.
 #[event]
 pub struct SupplyCapUpdated {
     pub mint: Pubkey,
@@ -102,6 +114,7 @@ pub struct SupplyCapUpdated {
     pub timestamp: i64,
 }
 
+/// Emitted when an address is added to the blacklist (SSS-2).
 #[event]
 pub struct BlacklistAdded {
     pub mint: Pubkey,
@@ -111,6 +124,7 @@ pub struct BlacklistAdded {
     pub timestamp: i64,
 }
 
+/// Emitted when an address is removed from the blacklist.
 #[event]
 pub struct BlacklistRemoved {
     pub mint: Pubkey,
@@ -119,6 +133,7 @@ pub struct BlacklistRemoved {
     pub timestamp: i64,
 }
 
+/// Emitted when an address is added to the allowlist (SSS-3).
 #[event]
 pub struct AllowlistAdded {
     pub mint: Pubkey,
@@ -127,6 +142,7 @@ pub struct AllowlistAdded {
     pub timestamp: i64,
 }
 
+/// Emitted when an address is removed from the allowlist.
 #[event]
 pub struct AllowlistRemoved {
     pub mint: Pubkey,
@@ -135,6 +151,7 @@ pub struct AllowlistRemoved {
     pub timestamp: i64,
 }
 
+/// Emitted when tokens are seized from a blacklisted account via permanent delegate.
 #[event]
 pub struct TokensSeized {
     pub mint: Pubkey,
@@ -145,6 +162,7 @@ pub struct TokensSeized {
     pub timestamp: i64,
 }
 
+/// Emitted when the stablecoin's metadata URI is updated.
 #[event]
 pub struct MetadataUpdated {
     pub mint: Pubkey,
@@ -153,6 +171,7 @@ pub struct MetadataUpdated {
     pub timestamp: i64,
 }
 
+/// Emitted when oracle price enforcement is configured.
 #[event]
 pub struct OracleConfigured {
     pub mint: Pubkey,

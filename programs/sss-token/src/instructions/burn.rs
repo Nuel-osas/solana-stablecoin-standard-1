@@ -7,6 +7,8 @@ use crate::error::SSSError;
 use crate::events;
 use crate::state::*;
 
+/// Burn tokens from the burner's own token account.
+/// Enforces pause state, burner role, and optional oracle price peg validation.
 pub fn handler(ctx: Context<BurnTokens>, amount: u64) -> Result<()> {
     let stablecoin = &ctx.accounts.stablecoin;
     require!(!stablecoin.paused, SSSError::Paused);
@@ -57,6 +59,7 @@ pub fn handler(ctx: Context<BurnTokens>, amount: u64) -> Result<()> {
     Ok(())
 }
 
+/// Accounts required to burn tokens. Burner must have an active burner role.
 #[derive(Accounts)]
 pub struct BurnTokens<'info> {
     #[account(mut)]

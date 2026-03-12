@@ -7,6 +7,7 @@ use crate::error::SSSError;
 use crate::events;
 use crate::state::*;
 
+/// Freeze a token account, preventing all transfers. Requires pauser role or master authority.
 pub fn freeze_handler(ctx: Context<FreezeAccount>) -> Result<()> {
     let stablecoin = &ctx.accounts.stablecoin;
     require!(!stablecoin.paused, SSSError::Paused);
@@ -47,6 +48,7 @@ pub fn freeze_handler(ctx: Context<FreezeAccount>) -> Result<()> {
     Ok(())
 }
 
+/// Thaw a frozen token account, re-enabling transfers. Requires pauser role or master authority.
 pub fn thaw_handler(ctx: Context<ThawAccount>) -> Result<()> {
     let stablecoin = &ctx.accounts.stablecoin;
 
@@ -86,6 +88,7 @@ pub fn thaw_handler(ctx: Context<ThawAccount>) -> Result<()> {
     Ok(())
 }
 
+/// Accounts required to freeze a token account.
 #[derive(Accounts)]
 pub struct FreezeAccount<'info> {
     pub authority: Signer<'info>,
@@ -112,6 +115,7 @@ pub struct FreezeAccount<'info> {
     pub token_program: Interface<'info, TokenInterface>,
 }
 
+/// Accounts required to thaw a frozen token account.
 #[derive(Accounts)]
 pub struct ThawAccount<'info> {
     pub authority: Signer<'info>,

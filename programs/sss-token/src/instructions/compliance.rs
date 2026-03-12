@@ -8,6 +8,8 @@ use crate::error::SSSError;
 use crate::events;
 use crate::state::*;
 
+/// Add an address to the blacklist. Requires blacklister role or master authority.
+/// Compliance must be enabled on the stablecoin.
 pub fn add_to_blacklist_handler(
     ctx: Context<BlacklistAdd>,
     address: Pubkey,
@@ -44,6 +46,7 @@ pub fn add_to_blacklist_handler(
     Ok(())
 }
 
+/// Deactivate a blacklist entry (entries are never deleted to preserve audit trail).
 pub fn remove_from_blacklist_handler(
     ctx: Context<BlacklistRemove>,
     _address: Pubkey,
@@ -72,6 +75,9 @@ pub fn remove_from_blacklist_handler(
     Ok(())
 }
 
+/// Seize all tokens from a blacklisted account using the permanent delegate.
+/// Transfers the full balance to a treasury account. Requires seizer role or master authority.
+/// Remaining accounts must include transfer hook extra account metas if hook is enabled.
 pub fn seize_handler<'a, 'b, 'c, 'info>(ctx: Context<'a, 'b, 'c, 'info, Seize<'info>>) -> Result<()> {
     let stablecoin = &ctx.accounts.stablecoin;
     require!(!stablecoin.paused, SSSError::Paused);
@@ -153,6 +159,7 @@ pub fn seize_handler<'a, 'b, 'c, 'info>(ctx: Context<'a, 'b, 'c, 'info, Seize<'i
     Ok(())
 }
 
+/// Accounts required to add an address to the blacklist (SSS-2).
 #[derive(Accounts)]
 #[instruction(address: Pubkey, reason: String)]
 pub struct BlacklistAdd<'info> {
@@ -184,6 +191,7 @@ pub struct BlacklistAdd<'info> {
     pub system_program: Program<'info, System>,
 }
 
+/// Accounts required to remove an address from the blacklist.
 #[derive(Accounts)]
 #[instruction(address: Pubkey)]
 pub struct BlacklistRemove<'info> {
@@ -211,6 +219,8 @@ pub struct BlacklistRemove<'info> {
     pub blacklist_entry: Account<'info, BlacklistEntry>,
 }
 
+/// Accounts required to seize tokens from a blacklisted account (SSS-2).
+/// Pass transfer hook extra account metas via remaining_accounts.
 #[derive(Accounts)]
 pub struct Seize<'info> {
     #[account(mut)]

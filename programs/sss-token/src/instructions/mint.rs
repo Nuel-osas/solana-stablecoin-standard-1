@@ -7,6 +7,8 @@ use crate::error::SSSError;
 use crate::events;
 use crate::state::*;
 
+/// Mint tokens to a recipient's token account.
+/// Enforces pause state, minter role, oracle price peg, supply cap, and per-minter quota.
 pub fn handler(ctx: Context<MintTokens>, amount: u64) -> Result<()> {
     let stablecoin = &ctx.accounts.stablecoin;
     require!(!stablecoin.paused, SSSError::Paused);
@@ -85,6 +87,7 @@ pub fn handler(ctx: Context<MintTokens>, amount: u64) -> Result<()> {
     Ok(())
 }
 
+/// Accounts required to mint tokens. Minter must have an active minter role.
 #[derive(Accounts)]
 pub struct MintTokens<'info> {
     #[account(mut)]

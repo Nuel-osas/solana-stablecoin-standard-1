@@ -5,6 +5,8 @@ use crate::error::SSSError;
 use crate::events;
 use crate::state::*;
 
+/// Add an address to the allowlist. Only master authority can call this.
+/// Allowlist must be enabled on the stablecoin (SSS-3).
 pub fn add_to_allowlist_handler(
     ctx: Context<AllowlistAdd>,
     address: Pubkey,
@@ -33,6 +35,7 @@ pub fn add_to_allowlist_handler(
     Ok(())
 }
 
+/// Remove an address from the allowlist. Closes the PDA and reclaims rent.
 pub fn remove_from_allowlist_handler(
     ctx: Context<AllowlistRemove>,
     _address: Pubkey,
@@ -56,6 +59,7 @@ pub fn remove_from_allowlist_handler(
     Ok(())
 }
 
+/// Accounts required to add an address to the allowlist (SSS-3).
 #[derive(Accounts)]
 #[instruction(address: Pubkey)]
 pub struct AllowlistAdd<'info> {
@@ -80,6 +84,7 @@ pub struct AllowlistAdd<'info> {
     pub system_program: Program<'info, System>,
 }
 
+/// Accounts required to remove an address from the allowlist.
 #[derive(Accounts)]
 #[instruction(address: Pubkey)]
 pub struct AllowlistRemove<'info> {

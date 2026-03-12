@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 
+/// Errors returned by the SSS Token program.
 #[error_code]
 pub enum SSSError {
     #[msg("Token operations are paused")]

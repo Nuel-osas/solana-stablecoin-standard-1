@@ -32,8 +32,8 @@ const STABLECOIN_SEED: &[u8] = b"stablecoin";
 const BLACKLIST_SEED: &[u8] = b"blacklist";
 const ALLOWLIST_SEED: &[u8] = b"allowlist";
 
-/// Read the `enable_allowlist` flag from raw Stablecoin account data.
-/// Layout: disc(8) + authority(32) + mint(32) + 3 Borsh strings + 5 bools + enable_allowlist(1)
+/// Read the `enable_allowlist` flag from raw Stablecoin account data by manually
+/// walking the Borsh layout. Avoids importing the sss-token crate as a dependency.
 fn read_enable_allowlist(data: &[u8]) -> bool {
     let mut offset = 8 + 32 + 32; // discriminator + authority + mint
     // Skip 3 Borsh strings (4-byte length prefix + content)
@@ -55,9 +55,8 @@ fn read_enable_allowlist(data: &[u8]) -> bool {
     data[offset] != 0
 }
 
-/// Read the `active` flag from a BlacklistEntry account.
-/// Layout: disc(8) + stablecoin(32) + address(32) + reason(4+var) + blacklisted_at(8) +
-///         blacklisted_by(32) + active(1) + bump(1)
+/// Read the `active` flag from a BlacklistEntry account by manually
+/// walking the Borsh layout. Returns false if the entry is inactive or data is malformed.
 fn read_blacklist_active(data: &[u8]) -> bool {
     let mut offset = 8 + 32 + 32; // discriminator + stablecoin + address
     // Skip Borsh string (reason)
@@ -441,6 +440,7 @@ pub mod sss_transfer_hook {
     }
 }
 
+/// Errors returned by the SSS Transfer Hook program.
 #[error_code]
 pub enum TransferHookError {
     #[msg("Sender is blacklisted")]
@@ -453,6 +453,8 @@ pub enum TransferHookError {
     RecipientNotAllowlisted,
 }
 
+/// Accounts for the transfer hook execute instruction.
+/// Token-2022 passes fixed accounts; blacklist/allowlist PDAs are resolved via extra account metas.
 #[derive(Accounts)]
 pub struct Execute<'info> {
     /// Source token account
@@ -492,6 +494,9 @@ pub struct Execute<'info> {
     pub destination_allowlist: Option<AccountInfo<'info>>,
 }
 
+/// Accounts required to initialize the extra account meta list PDA.
+/// This must be called once per mint to register the additional accounts
+/// (blacklist/allowlist PDAs) that Token-2022 will resolve on each transfer.
 #[derive(Accounts)]
 pub struct InitializeExtraAccountMetaList<'info> {
     #[account(mut)]

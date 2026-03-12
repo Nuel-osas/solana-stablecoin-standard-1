@@ -5,6 +5,7 @@ use crate::error::SSSError;
 use crate::events;
 use crate::state::*;
 
+/// Pause all token operations (mint, burn, freeze). Requires pauser role or master authority.
 pub fn pause_handler(ctx: Context<PauseUnpause>) -> Result<()> {
     let stablecoin = &ctx.accounts.stablecoin;
 
@@ -27,6 +28,7 @@ pub fn pause_handler(ctx: Context<PauseUnpause>) -> Result<()> {
     Ok(())
 }
 
+/// Resume token operations after a pause. Requires pauser role or master authority.
 pub fn unpause_handler(ctx: Context<PauseUnpause>) -> Result<()> {
     let stablecoin = &ctx.accounts.stablecoin;
 
@@ -48,6 +50,7 @@ pub fn unpause_handler(ctx: Context<PauseUnpause>) -> Result<()> {
     Ok(())
 }
 
+/// Accounts required to pause or unpause the stablecoin.
 #[derive(Accounts)]
 pub struct PauseUnpause<'info> {
     #[account(mut)]

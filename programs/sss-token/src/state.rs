@@ -62,6 +62,7 @@ impl Stablecoin {
         1 +                        // bump
         23;                        // _reserved
 
+    /// Returns true if any SSS-2 compliance feature (permanent delegate or transfer hook) is enabled.
     pub fn is_compliance_enabled(&self) -> bool {
         self.enable_permanent_delegate || self.enable_transfer_hook
     }
@@ -187,6 +188,7 @@ pub enum Role {
 }
 
 impl Role {
+    /// Returns the PDA seed bytes for this role variant.
     pub fn to_seed(&self) -> &[u8] {
         match self {
             Role::Minter => b"minter",
@@ -197,6 +199,7 @@ impl Role {
         }
     }
 
+    /// Returns a human-readable string for this role (used in events).
     pub fn to_string(&self) -> String {
         match self {
             Role::Minter => "minter".to_string(),

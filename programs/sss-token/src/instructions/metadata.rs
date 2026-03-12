@@ -51,6 +51,7 @@ pub fn update_metadata_handler(
     Ok(())
 }
 
+/// Accounts required to update the stablecoin's metadata URI.
 #[derive(Accounts)]
 pub struct UpdateMetadata<'info> {
     #[account(mut)]

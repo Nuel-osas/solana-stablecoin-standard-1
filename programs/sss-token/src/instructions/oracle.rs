@@ -107,6 +107,7 @@ pub fn validate_oracle_price(
     Ok(())
 }
 
+/// Accounts required to configure oracle price enforcement.
 #[derive(Accounts)]
 pub struct ConfigureOracle<'info> {
     #[account(mut)]

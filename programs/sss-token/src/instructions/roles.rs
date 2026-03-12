@@ -5,6 +5,9 @@ use crate::error::SSSError;
 use crate::events;
 use crate::state::*;
 
+/// Assign a role to an address. Only master authority can call this.
+/// Compliance roles (blacklister/seizer) require compliance to be enabled.
+/// When assigning the minter role, also initializes the minter quota tracker.
 pub fn assign_role_handler(ctx: Context<AssignRole>, role: Role, assignee: Pubkey) -> Result<()> {
     let stablecoin = &ctx.accounts.stablecoin;
     require!(
@@ -48,6 +51,7 @@ pub fn assign_role_handler(ctx: Context<AssignRole>, role: Role, assignee: Pubke
     Ok(())
 }
 
+/// Revoke a role from an address by deactivating the role assignment PDA.
 pub fn revoke_role_handler(ctx: Context<RevokeRole>, _role: Role, _assignee: Pubkey) -> Result<()> {
     let stablecoin = &ctx.accounts.stablecoin;
     require!(
@@ -159,6 +163,7 @@ pub fn set_supply_cap_handler(ctx: Context<SetSupplyCap>, supply_cap: u64) -> Re
     Ok(())
 }
 
+/// Update the mint quota for a specific minter. Only master authority can call this.
 pub fn update_minter_quota_handler(ctx: Context<UpdateMinterQuota>, new_quota: u64) -> Result<()> {
     let stablecoin = &ctx.accounts.stablecoin;
     require!(
@@ -172,6 +177,7 @@ pub fn update_minter_quota_handler(ctx: Context<UpdateMinterQuota>, new_quota: u
     Ok(())
 }
 
+/// Accounts required to assign a role. Creates role PDA and optional minter info PDA.
 #[derive(Accounts)]
 #[instruction(role: Role, assignee: Pubkey)]
 pub struct AssignRole<'info> {
@@ -206,6 +212,7 @@ pub struct AssignRole<'info> {
     pub system_program: Program<'info, System>,
 }
 
+/// Accounts required to revoke a role.
 #[derive(Accounts)]
 #[instruction(role: Role, assignee: Pubkey)]
 pub struct RevokeRole<'info> {
@@ -226,6 +233,7 @@ pub struct RevokeRole<'info> {
     pub role_assignment: Account<'info, RoleAssignment>,
 }
 
+/// Accounts required for two-step authority transfer (step 1: nominate).
 #[derive(Accounts)]
 pub struct NominateAuthority<'info> {
     #[account(mut)]
@@ -239,6 +247,7 @@ pub struct NominateAuthority<'info> {
     pub stablecoin: Account<'info, Stablecoin>,
 }
 
+/// Accounts required for two-step authority transfer (step 2: accept).
 #[derive(Accounts)]
 pub struct AcceptAuthority<'info> {
     #[account(mut)]
@@ -252,6 +261,7 @@ pub struct AcceptAuthority<'info> {
     pub stablecoin: Account<'info, Stablecoin>,
 }
 
+/// Accounts required for direct (single-step) authority transfer.
 #[derive(Accounts)]
 pub struct TransferAuthority<'info> {
     #[account(mut)]
@@ -265,6 +275,7 @@ pub struct TransferAuthority<'info> {
     pub stablecoin: Account<'info, Stablecoin>,
 }
 
+/// Accounts required to set or update the supply cap.
 #[derive(Accounts)]
 pub struct SetSupplyCap<'info> {
     #[account(mut)]
@@ -278,6 +289,7 @@ pub struct SetSupplyCap<'info> {
     pub stablecoin: Account<'info, Stablecoin>,
 }
 
+/// Accounts required to update a minter's quota.
 #[derive(Accounts)]
 pub struct UpdateMinterQuota<'info> {
     #[account(mut)]

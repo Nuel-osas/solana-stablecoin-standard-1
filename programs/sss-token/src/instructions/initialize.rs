@@ -9,6 +9,9 @@ use crate::error::SSSError;
 use crate::events;
 use crate::state::*;
 
+/// Initialize a new stablecoin mint with Token-2022 extensions based on the preset config.
+/// Creates the mint, sets up metadata, and configures optional extensions
+/// (permanent delegate, transfer hook, default frozen state, confidential transfers).
 pub fn handler(ctx: Context<Initialize>, config: StablecoinInitConfig) -> Result<()> {
     // Validate config
     require!(config.name.len() <= MAX_NAME_LEN, SSSError::NameTooLong);
@@ -205,6 +208,7 @@ pub fn handler(ctx: Context<Initialize>, config: StablecoinInitConfig) -> Result
     Ok(())
 }
 
+/// Accounts required to initialize a new stablecoin.
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(mut)]
